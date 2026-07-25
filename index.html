@@ -198,7 +198,7 @@
     arjs="sourceType: webcam; debugUIEnabled: false;">
 
     <a-assets timeout="20000">
-      <a-asset-item id="cakeModel" src="assets/cake.glb"></a-asset-item>
+      <a-asset-item id="cakeModel" src="assets/cake_opt.glb"></a-asset-item>
     </a-assets>
 
     <a-marker preset="hiro" id="marker" hbd-controller
@@ -236,8 +236,8 @@
                   material="shader: flat; color: #FFE9B0; opacity: 0.28; transparent: true; side: double"></a-circle>
         <!-- ゆっくり自転（生えながら回る） -->
         <a-entity animation__spin="property: rotation; from: 0 0 0; to: 0 360 0; dur: 7000; loop: true; easing: linear">
-          <!-- スケール0.78で高さ約0.7 / y=0.347で底が地面に接地 -->
-          <a-gltf-model src="#cakeModel" scale="0.78 0.78 0.78" position="0 0.347 0"></a-gltf-model>
+          <!-- cake_opt.glb: スケール0.406で高さ約0.7 / y=0.348で底が地面に接地 -->
+          <a-gltf-model src="#cakeModel" scale="0.406 0.406 0.406" position="0 0.348 0"></a-gltf-model>
         </a-entity>
       </a-entity>
 
