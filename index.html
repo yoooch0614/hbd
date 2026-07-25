@@ -509,7 +509,7 @@
                 animation__pop="property: scale; from: 0 0 0; to: 1 1 1; dur: 500; delay: 1600; easing: easeOutBack; startEvents: open"
                 animation__shrink="property: scale; from: 1 1 1; to: 0 0 0; dur: 700; easing: easeInBack; startEvents: close">
         <a-entity id="charModelEnt" gltf-model="#charModel" animation-mixer="clip: *; loop: repeat; timeScale: 0.6"
-                  scale="0.4 0.4 0.4" position="0 0 0" rotation="0 0 0"></a-entity>
+                  scale="0.4 0.4 0.4" position="0 0 0" rotation="0 -90 0"></a-entity>
       </a-entity>
 
       <!-- ケーキの周りをまわるキャラ（毎回は出さない / actionでcharacter_orbitが選ばれた時だけ 'orbitshow' で登場） -->
@@ -538,10 +538,10 @@
 
       <!-- ── ランダム出演キャラ（開くたびに中身をrandom-castが差し替え） ── -->
       <!-- ケーキ左前に lose と win を並べる -->
-      <a-entity id="loseChar" position="-1.1 0 0.75" scale="0 0 0"
+      <a-entity id="loseChar" position="-0.95 0 0.8" scale="0 0 0"
                 animation__pop="property: scale; from: 0 0 0; to: 1 1 1; dur: 500; delay: 7600; easing: easeOutBack; startEvents: open"
                 animation__shrink="property: scale; from: 1 1 1; to: 0 0 0; dur: 700; easing: easeInBack; startEvents: close"></a-entity>
-      <a-entity id="winChar" position="-0.55 0 0.98" scale="0 0 0"
+      <a-entity id="winChar" position="-0.68 0 0.92" scale="0 0 0"
                 animation__pop="property: scale; from: 0 0 0; to: 1 1 1; dur: 500; delay: 7600; easing: easeOutBack; startEvents: open"
                 animation__shrink="property: scale; from: 1 1 1; to: 0 0 0; dur: 700; easing: easeInBack; startEvents: close"></a-entity>
       <!-- action（位置はrandom-castがキャラに応じて設定） -->
