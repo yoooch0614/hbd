@@ -146,6 +146,64 @@
     });
 
     // ─────────────────────────────────────────────────────────
+    // 効果音（Web Audioで合成 / 音源ファイル不要）
+    // ─────────────────────────────────────────────────────────
+    var SFX = (function () {
+      var ctx = null;
+      function ac() {
+        if (!ctx) ctx = new (window.AudioContext || window.webkitAudioContext)();
+        if (ctx.state === 'suspended') ctx.resume();
+        return ctx;
+      }
+      // カードを開く: やわらかいウーッシュ（ノイズを帯域掃引）
+      function whoosh() {
+        var c = ac(), t = c.currentTime, dur = 0.55;
+        var buf = c.createBuffer(1, Math.floor(c.sampleRate * dur), c.sampleRate);
+        var dt = buf.getChannelData(0);
+        for (var i = 0; i < dt.length; i++) dt[i] = Math.random() * 2 - 1;
+        var n = c.createBufferSource(); n.buffer = buf;
+        var bp = c.createBiquadFilter(); bp.type = 'bandpass'; bp.Q.value = 0.7;
+        bp.frequency.setValueAtTime(350, t); bp.frequency.exponentialRampToValueAtTime(2400, t + dur);
+        var g = c.createGain();
+        g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(0.22, t + 0.08);
+        g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+        n.connect(bp).connect(g).connect(c.destination); n.start(t); n.stop(t + dur);
+      }
+      // ケーキ出現: きらめくアルペジオ（タラーン）
+      function chime() {
+        var c = ac(), t0 = c.currentTime, notes = [523.25, 659.25, 783.99, 1046.5];
+        notes.forEach(function (f, i) {
+          var t = t0 + i * 0.09;
+          var o = c.createOscillator(); o.type = 'triangle'; o.frequency.value = f;
+          var g = c.createGain();
+          g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(0.2, t + 0.02);
+          g.gain.exponentialRampToValueAtTime(0.0001, t + 0.5);
+          o.connect(g).connect(c.destination); o.start(t); o.stop(t + 0.55);
+        });
+      }
+      // 花吹雪: パンッ（ポップ）＋キラキラ
+      function pop() {
+        var c = ac(), t = c.currentTime;
+        var buf = c.createBuffer(1, Math.floor(c.sampleRate * 0.15), c.sampleRate);
+        var d = buf.getChannelData(0);
+        for (var i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / d.length, 2);
+        var n = c.createBufferSource(); n.buffer = buf;
+        var hp = c.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 700;
+        var g = c.createGain(); g.gain.value = 0.5;
+        n.connect(hp).connect(g).connect(c.destination); n.start(t); n.stop(t + 0.15);
+        [1568, 2093, 2637].forEach(function (f, i) {
+          var tt = t + 0.02 + i * 0.05;
+          var o = c.createOscillator(); o.type = 'sine'; o.frequency.value = f;
+          var gg = c.createGain();
+          gg.gain.setValueAtTime(0.0001, tt); gg.gain.linearRampToValueAtTime(0.14, tt + 0.01);
+          gg.gain.exponentialRampToValueAtTime(0.0001, tt + 0.2);
+          o.connect(gg).connect(c.destination); o.start(tt); o.stop(tt + 0.22);
+        });
+      }
+      return { ac: ac, whoosh: whoosh, chime: chime, pop: pop };
+    })();
+
+    // ─────────────────────────────────────────────────────────
     // 進行管理: 検知→カードのみ表示 / タップ→開く / 見失う→リセット
     // ─────────────────────────────────────────────────────────
     AFRAME.registerComponent('hbd-controller', {
@@ -171,7 +229,14 @@
         var tap = function () {
           if (self.state === 'ready') {
             self.state = 'opened';
-            fire(['cover', 'cakeWrap', 'confetti'], 'open');
+            SFX.ac();                                   // タップ（ユーザー操作）で音声を有効化
+            fire(['cover', 'cakeWrap'], 'open');        // カードが開く＋ケーキが生える(700ms後)
+            SFX.whoosh();                               // 🔊 開く音
+            setTimeout(function () { SFX.chime(); }, 700);   // 🔊 ケーキ出現音（生え始めに同期）
+            setTimeout(function () {                          // 🔊 花吹雪（音と同時に発火）
+              var cf = document.getElementById('confetti'); if (cf) cf.emit('open');
+              SFX.pop();
+            }, 950);
             hint.textContent = '🎉 Happy Birthday! 🎉';
           }
         };
@@ -183,6 +248,7 @@
         set('cardGroup', 'scale', '0 0 0');
         set('cover', 'rotation', '-90 0 0');
         set('cakeWrap', 'scale', '0 0 0');
+        set('cakeWrap', 'rotation', '0 0 0');
       }
     });
   </script>
@@ -234,15 +300,13 @@
 
       <!-- ── ケーキ（開くと白紙の中央から回りながら生える） ── -->
       <a-entity id="cakeWrap" position="0 0 0" scale="0 0 0"
-                animation__grow="property: scale; from: 0 0 0; to: 1 1 1; dur: 1300; delay: 700; easing: easeOutBack; startEvents: open">
+                animation__grow="property: scale; from: 0 0 0; to: 1 1 1; dur: 1300; delay: 700; easing: easeOutBack; startEvents: open"
+                animation__spin="property: rotation; from: 0 360 0; to: 0 0 0; dur: 1500; delay: 700; easing: easeOutCubic; startEvents: open">
         <!-- 足元のやわらかい光 -->
         <a-circle rotation="-90 0 0" radius="0.5" position="0 0.009 0"
                   material="shader: flat; color: #FFE9B0; opacity: 0.3; transparent: true; side: double"></a-circle>
-        <!-- ゆっくり自転（生えながら回る） -->
-        <a-entity animation__spin="property: rotation; from: 0 0 0; to: 0 360 0; dur: 7000; loop: true; easing: linear">
-          <!-- cake_rich.glb: スケール0.403で高さ約0.7 / y=0.351で底が接地 -->
-          <a-gltf-model src="#cakeModel" scale="0.403 0.403 0.403" position="0 0.351 0"></a-gltf-model>
-        </a-entity>
+        <!-- cake_rich.glb: スケール0.403で高さ約0.7 / y=0.351で底が接地（回転は生える時のみ） -->
+        <a-gltf-model src="#cakeModel" scale="0.403 0.403 0.403" position="0 0.351 0"></a-gltf-model>
       </a-entity>
 
       <!-- 紙吹雪（'open'で発火。マーカーに追従） -->
