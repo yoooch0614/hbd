@@ -8,6 +8,8 @@
   <!-- A-Frame 1.3.0 + AR.js 3.4.5（安定して動く組み合わせ） -->
   <script src="https://aframe.io/releases/1.3.0/aframe.min.js"></script>
   <script src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js@3.4.5/aframe/build/aframe-ar.js"></script>
+  <!-- animation-mixer（スキン付きglTFアニメ再生用） -->
+  <script src="https://cdn.jsdelivr.net/npm/aframe-extras@7.0.0/dist/aframe-extras.min.js"></script>
 
   <style>
     html, body { margin: 0; overflow: hidden; font-family: system-ui, sans-serif; }
@@ -230,7 +232,7 @@
           if (self.state === 'ready') {
             self.state = 'opened';
             SFX.ac();                                   // タップ（ユーザー操作）で音声を有効化
-            fire(['cover', 'cakeWrap'], 'open');        // カードが開く＋ケーキが生える(700ms後)
+            fire(['cover', 'cakeWrap', 'charTopper'], 'open'); // カード開く＋ケーキ生える(700ms)＋キャラ登場(1700ms)
             SFX.whoosh();                               // 🔊 開く音
             setTimeout(function () { SFX.chime(); }, 700);   // 🔊 ケーキ出現音（生え始めに同期）
             setTimeout(function () {                          // 🔊 花吹雪（音と同時に発火）
@@ -265,6 +267,7 @@
 
     <a-assets timeout="20000">
       <a-asset-item id="cakeModel" src="assets/cake_rich.glb"></a-asset-item>
+      <a-asset-item id="charModel" src="assets/character.glb"></a-asset-item>
       <img id="coverImg" src="assets/card_cover.jpg" crossorigin="anonymous">
     </a-assets>
 
@@ -307,6 +310,15 @@
                   material="shader: flat; color: #FFE9B0; opacity: 0.3; transparent: true; side: double"></a-circle>
         <!-- cake_rich.glb: スケール0.403で高さ約0.7 / y=0.351で底が接地（回転は生える時のみ） -->
         <a-gltf-model src="#cakeModel" scale="0.403 0.403 0.403" position="0 0.351 0"></a-gltf-model>
+      </a-entity>
+
+      <!-- ── ケーキの上のキャラ（アニメ付き / 開いてケーキが生えた後に登場） ── -->
+      <!-- charModelEnt: scale16.5で高さ約0.4（元モデルは0.024と極小のため拡大）/ 足元=原点
+           charTopper: y=0.66 でケーキ上面に立たせる。回転0=カメラ向き -->
+      <a-entity id="charTopper" position="0 0.66 0" scale="0 0 0"
+                animation__pop="property: scale; from: 0 0 0; to: 1 1 1; dur: 500; delay: 1700; easing: easeOutBack; startEvents: open">
+        <a-entity id="charModelEnt" gltf-model="#charModel" animation-mixer="clip: *; loop: repeat"
+                  scale="16.5 16.5 16.5" position="0 0 0" rotation="0 0 0"></a-entity>
       </a-entity>
 
       <!-- 紙吹雪（'open'で発火。マーカーに追従） -->
