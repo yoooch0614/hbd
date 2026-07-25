@@ -198,7 +198,7 @@
     arjs="sourceType: webcam; debugUIEnabled: false;">
 
     <a-assets timeout="20000">
-      <a-asset-item id="cakeModel" src="assets/cake_opt.glb"></a-asset-item>
+      <a-asset-item id="cakeModel" src="assets/cake_rich.glb"></a-asset-item>
       <img id="coverImg" src="assets/card_cover.jpg" crossorigin="anonymous">
     </a-assets>
 
@@ -223,8 +223,12 @@
              閉: 平置きで画像が上向き, 開: 立ち上がって奥へ -->
         <a-entity id="cover" position="0 0.012 -0.375" rotation="-90 0 0"
                   animation__open="property: rotation; from: -90 0 0; to: -170 0 0; dur: 1200; easing: easeInOutCubic; startEvents: open">
-          <a-plane position="0 -0.375 0" width="1.0" height="0.75"
-                   material="src: #coverImg; side: double; shader: flat"></a-plane>
+          <!-- 表：添付画像（閉じたとき上を向く面） -->
+          <a-plane position="0 -0.375 0.0015" width="1.0" height="0.75"
+                   material="src: #coverImg; side: front; shader: flat"></a-plane>
+          <!-- 裏：白紙（開くと見える面。裏写り防止） -->
+          <a-plane position="0 -0.375 -0.0015" rotation="0 180 0" width="1.0" height="0.75"
+                   material="color: #FFFFFF; side: front; shader: flat"></a-plane>
         </a-entity>
       </a-entity>
 
@@ -236,8 +240,8 @@
                   material="shader: flat; color: #FFE9B0; opacity: 0.3; transparent: true; side: double"></a-circle>
         <!-- ゆっくり自転（生えながら回る） -->
         <a-entity animation__spin="property: rotation; from: 0 0 0; to: 0 360 0; dur: 7000; loop: true; easing: linear">
-          <!-- cake_opt.glb: スケール0.406で高さ約0.7 / y=0.348で底が接地 -->
-          <a-gltf-model src="#cakeModel" scale="0.406 0.406 0.406" position="0 0.348 0"></a-gltf-model>
+          <!-- cake_rich.glb: スケール0.403で高さ約0.7 / y=0.351で底が接地 -->
+          <a-gltf-model src="#cakeModel" scale="0.403 0.403 0.403" position="0 0.351 0"></a-gltf-model>
         </a-entity>
       </a-entity>
 
