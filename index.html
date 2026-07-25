@@ -268,7 +268,7 @@
           if (self.state === 'ready') {
             self.state = 'opened';
             SFX.ac();                                   // タップ（ユーザー操作）で音声を有効化
-            fire(['cover', 'cakeWrap', 'charTopper'], 'open'); // カード開く＋ケーキ生える(700ms)＋キャラ登場(1700ms)
+            fire(['cover', 'cakeWrap', 'charTopper', 'orbitCharParent'], 'open'); // カード開く＋ケーキ生える(700ms)＋キャラ登場(1700ms)
             SFX.whoosh();                               // 🔊 開く音
             setTimeout(function () { SFX.chime(); }, 700);   // 🔊 ケーキ出現音（生え始めに同期）
             setTimeout(function () {                          // 🔊 花吹雪（音と同時に発火）
@@ -341,31 +341,29 @@
       <!-- ── ケーキ（開くと白紙の中央から回りながら生える） ── -->
       <a-entity id="cakeWrap" position="0 0 0" scale="0 0 0"
                 animation__grow="property: scale; from: 0 0 0; to: 1 1 1; dur: 1300; delay: 700; easing: easeOutBack; startEvents: open"
-                animation__spin="property: rotation; from: 0 360 0; to: 0 0 0; dur: 1500; delay: 700; easing: easeOutCubic; startEvents: open">
+                animation__spin="property: rotation; from: 0 360 0; to: 0 0 0; dur: 1500; delay: 700; easing: easeOutCubic; startEvents: open"
+                animation__slow="property: rotation; from: 0 0 0; to: 0 360 0; dur: 26000; easing: linear; loop: true; startEvents: open">
         <!-- 足元のやわらかい光 -->
         <a-circle rotation="-90 0 0" radius="1.0" position="0 0.009 0"
                   material="shader: flat; color: #FFE9B0; opacity: 0.3; transparent: true; side: double"></a-circle>
         <!-- cake_rich.glb: スケール0.806で高さ約1.4 / y=0.702で底が接地（回転は生える時のみ） -->
-        <a-gltf-model src="#cakeModel" scale="0.806 0.806 0.806" position="0 0.702 0"
-                      animation__slow="property: rotation; to: 0 360 0; dur: 26000; easing: linear; loop: true; startEvents: open"></a-gltf-model>
-      </a-entity>
-
+        <a-gltf-model src="#cakeModel" scale="0.806 0.806 0.806" position="0 0.702 0"></a-gltf-model>
       <!-- ── ケーキの上のキャラ（アニメ付き / 開いてケーキが生えた後に登場） ── -->
       <!-- charModelEnt: scale0.1で高さ約0.4 / 足元=原点
            charTopper: y=0.88 でケーキ上面に立たせる。回転0=カメラ向き -->
       <a-entity id="charTopper" position="0 0.88 0" scale="0 0 0"
                 animation__pop="property: scale; from: 0 0 0; to: 1 1 1; dur: 500; delay: 1700; easing: easeOutBack; startEvents: open">
         <a-entity id="charModelEnt" gltf-model="#charModel" animation-mixer="clip: *; loop: repeat"
-                  scale="0.1 0.1 0.1" position="0 0 0" rotation="0 0 0"></a-entity>
+                  scale="0.4 0.4 0.4" position="0 0 0" rotation="0 0 0"></a-entity>
       </a-entity>
 
       <!-- orbiting character around the cake -->
       <a-entity id="orbitCharParent" position="0 0 0" scale="0 0 0"
                 animation__pop="property: scale; from: 0 0 0; to: 1 1 1; dur: 500; delay: 1700; easing: easeOutBack; startEvents: open">
         <a-entity id="orbitCharOrbit" position="0 0 0"
-                  animation__orbit="property: rotation; to: 0 360 0; dur: 14000; easing: linear; loop: true; startEvents: open">
+                  animation__orbit="property: rotation; from: 0 0 0; to: 0 360 0; dur: 14000; easing: linear; loop: true; startEvents: open">
           <a-entity gltf-model="#orbitCharModel" animation-mixer="clip: *; loop: repeat"
-                    scale="0.1 0.1 0.1" position="0.7 0.88 0" rotation="0 180 0"></a-entity>
+                    scale="0.4 0.4 0.4" position="1.1 0.88 0" rotation="0 180 0"></a-entity>
         </a-entity>
       </a-entity>
 
