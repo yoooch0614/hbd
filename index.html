@@ -269,7 +269,7 @@
         var CLOSE_AFTER = 15000;
         var closeSeq = function () {
           if (self.state !== 'opened') return;
-          fire(['cover', 'cakeWrap', 'charTopper', 'orbitCharParent'], 'close');
+          fire(['cover', 'cakeWrap', 'charTopper', 'orbitCharParent', 'bunnyWrap'], 'close');
           SFX.whoosh();
           setTimeout(function () {
             if (self.state === 'opened') {
@@ -283,7 +283,7 @@
           if (self.state === 'ready') {
             self.state = 'opened';
             SFX.ac();                                   // タップ（ユーザー操作）で音声を有効化
-            fire(['cover', 'cakeWrap', 'charTopper', 'orbitCharParent', 'orbitCharOrbit'], 'open'); // カード開く＋ケーキ生える(700ms)＋キャラ登場(1700ms)＋周回開始
+            fire(['cover', 'cakeWrap', 'charTopper', 'orbitCharParent', 'orbitCharOrbit', 'bunnyWrap'], 'open'); // カード開く＋ケーキ生える(700ms)＋キャラ登場(1700ms)＋周回開始＋バニー登場
             SFX.whoosh();                               // 🔊 開く音
             setTimeout(function () { SFX.chime(); }, 700);   // 🔊 ケーキ出現音（生え始めに同期）
             setTimeout(function () {                          // 🔊 花吹雪（音と同時に発火）
@@ -306,6 +306,7 @@
         set('cakeWrap', 'rotation', '0 0 0');
         set('charTopper', 'scale', '0 0 0');
         set('orbitCharParent', 'scale', '0 0 0');
+        set('bunnyWrap', 'scale', '0 0 0');
       }
     });
   </script>
@@ -322,8 +323,9 @@
 
     <a-assets timeout="20000">
       <a-asset-item id="cakeModel" src="assets/cake_rich.glb"></a-asset-item>
-      <a-asset-item id="charModel" src="assets/character.glb"></a-asset-item>
+      <a-asset-item id="charModel" src="assets/char_top.glb"></a-asset-item>
       <a-asset-item id="orbitCharModel" src="assets/character_orbit.glb"></a-asset-item>
+      <a-asset-item id="bunnyModel" src="assets/bunny.glb"></a-asset-item>
       <img id="coverImg" src="assets/card_cover.jpg" crossorigin="anonymous">
     </a-assets>
 
@@ -376,7 +378,7 @@
       <a-entity id="charTopper" position="0 0.88 0" scale="0 0 0"
                 animation__pop="property: scale; from: 0 0 0; to: 1 1 1; dur: 500; delay: 1700; easing: easeOutBack; startEvents: open"
                 animation__shrink="property: scale; from: 1 1 1; to: 0 0 0; dur: 700; easing: easeInBack; startEvents: close">
-        <a-entity id="charModelEnt" gltf-model="#charModel" animation-mixer="clip: *; loop: repeat"
+        <a-entity id="charModelEnt" gltf-model="#charModel" animation-mixer="clip: *; loop: repeat; timeScale: 0.6"
                   scale="0.4 0.4 0.4" position="0 0 0" rotation="0 0 0"></a-entity>
       </a-entity>
 
@@ -388,6 +390,19 @@
                   animation__orbit="property: rotation; from: 0 0 0; to: 0 360 0; dur: 14000; easing: linear; loop: true; startEvents: open">
           <a-entity gltf-model="#orbitCharModel" animation-mixer="clip: *; loop: repeat"
                     scale="0.267 0.267 0.267" position="1.1 0 0" rotation="0 180 0"></a-entity>
+        </a-entity>
+      </a-entity>
+
+      <!-- ── ぴょんぴょん跳ねるバニー（ケーキ右前 / モデルにアニメが無いのでプログラムで動かす） ── -->
+      <a-entity id="bunnyWrap" position="0.85 0 0.9" rotation="0 -25 0" scale="0 0 0"
+                animation__pop="property: scale; from: 0 0 0; to: 1 1 1; dur: 500; delay: 1700; easing: easeOutBack; startEvents: open"
+                animation__shrink="property: scale; from: 1 1 1; to: 0 0 0; dur: 700; easing: easeInBack; startEvents: close">
+        <!-- 上下の跳ね（着地→跳び上がりを繰り返す） -->
+        <a-entity id="bunnyHop"
+                  animation__hop="property: position; from: 0 0 0; to: 0 0.22 0; dir: alternate; loop: true; dur: 320; easing: easeOutQuad">
+          <!-- 体の揺れ（左右へわずかに傾く） -->
+          <a-entity gltf-model="#bunnyModel" scale="0.4 0.4 0.4" position="0 0 0" rotation="0 0 0"
+                    animation__sway="property: rotation; from: 0 0 -7; to: 0 0 7; dir: alternate; loop: true; dur: 640; easing: easeInOutSine"></a-entity>
         </a-entity>
       </a-entity>
 
