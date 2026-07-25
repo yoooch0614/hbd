@@ -218,13 +218,13 @@
       if (navigator.permissions && navigator.permissions.query) {
         navigator.permissions.query({ name: 'camera' }).then(function (result) {
           if (result.state === 'granted') {
-            setHint('カメラが認証されたらマーカーを移してください');
+            setHint('カメラが起動したらマーカーを映してください');
           } else if (result.state === 'denied') {
             setHint('カメラの許可が必要です');
           }
           result.onchange = function () {
             if (result.state === 'granted') {
-              setHint('カメラが認証されたらマーカーを移してください');
+              setHint('カメラが起動したらマーカーを映してください');
             }
           };
         }).catch(function () {
@@ -233,7 +233,7 @@
       }
       navigator.mediaDevices.getUserMedia({ video: true })
         .then(function (stream) {
-          setHint('カメラが認証されたらマーカーを移してください');
+          setHint('カメラが起動したらマーカーを映してください');
           stream.getTracks().forEach(function (track) { track.stop(); });
         }).catch(function () {
           setHint('カメラの許可が必要です');
@@ -257,11 +257,11 @@
 
         el.addEventListener('markerFound', function () {
           if (self.state === 'idle') { self.state = 'ready'; fire(['cardGroup'], 'appear'); }
-          hint.textContent = 'カードをタップして開いてね 💌';
+          hint.textContent = 'カードをタップして開いてね';
         });
         el.addEventListener('markerLost', function () {
           self.state = 'idle'; self._reset();
-          hint.textContent = 'マーカーを移してください';
+          hint.textContent = '再読み込みしてください';
         });
 
         var tap = function () {
@@ -275,7 +275,7 @@
               var cf = document.getElementById('confetti'); if (cf) cf.emit('open');
               SFX.pop();
             }, 950);
-            hint.textContent = '🎉 Happy Birthday! 🎉';
+            hint.textContent = ' Happy Birthday! ';
           }
         };
         window.addEventListener('click', tap);
@@ -304,6 +304,7 @@
     <a-assets timeout="20000">
       <a-asset-item id="cakeModel" src="assets/cake_rich.glb"></a-asset-item>
       <a-asset-item id="charModel" src="assets/character.glb"></a-asset-item>
+      <a-asset-item id="orbitCharModel" src="assets/character_orbit.glb"></a-asset-item>
       <img id="coverImg" src="assets/card_cover.jpg" crossorigin="anonymous">
     </a-assets>
 
@@ -345,16 +346,27 @@
         <a-circle rotation="-90 0 0" radius="1.0" position="0 0.009 0"
                   material="shader: flat; color: #FFE9B0; opacity: 0.3; transparent: true; side: double"></a-circle>
         <!-- cake_rich.glb: スケール0.806で高さ約1.4 / y=0.702で底が接地（回転は生える時のみ） -->
-        <a-gltf-model src="#cakeModel" scale="0.806 0.806 0.806" position="0 0.702 0"></a-gltf-model>
+        <a-gltf-model src="#cakeModel" scale="0.806 0.806 0.806" position="0 0.702 0"
+                      animation__slow="property: rotation; to: 0 360 0; dur: 26000; easing: linear; loop: true; startEvents: open"></a-gltf-model>
       </a-entity>
 
       <!-- ── ケーキの上のキャラ（アニメ付き / 開いてケーキが生えた後に登場） ── -->
-      <!-- charModelEnt: scale0.05で高さ約0.2 / 足元=原点
-           charTopper: y=0.72 でケーキ上面に立たせる。回転0=カメラ向き -->
-      <a-entity id="charTopper" position="0 0.72 0" scale="0 0 0"
+      <!-- charModelEnt: scale0.1で高さ約0.4 / 足元=原点
+           charTopper: y=0.88 でケーキ上面に立たせる。回転0=カメラ向き -->
+      <a-entity id="charTopper" position="0 0.88 0" scale="0 0 0"
                 animation__pop="property: scale; from: 0 0 0; to: 1 1 1; dur: 500; delay: 1700; easing: easeOutBack; startEvents: open">
         <a-entity id="charModelEnt" gltf-model="#charModel" animation-mixer="clip: *; loop: repeat"
-                  scale="0.05 0.05 0.05" position="0 0 0" rotation="0 0 0"></a-entity>
+                  scale="0.1 0.1 0.1" position="0 0 0" rotation="0 0 0"></a-entity>
+      </a-entity>
+
+      <!-- orbiting character around the cake -->
+      <a-entity id="orbitCharParent" position="0 0 0" scale="0 0 0"
+                animation__pop="property: scale; from: 0 0 0; to: 1 1 1; dur: 500; delay: 1700; easing: easeOutBack; startEvents: open">
+        <a-entity id="orbitCharOrbit" position="0 0 0"
+                  animation__orbit="property: rotation; to: 0 360 0; dur: 14000; easing: linear; loop: true; startEvents: open">
+          <a-entity gltf-model="#orbitCharModel" animation-mixer="clip: *; loop: repeat"
+                    scale="0.1 0.1 0.1" position="0.7 0.88 0" rotation="0 180 0"></a-entity>
+        </a-entity>
       </a-entity>
 
       <!-- 紙吹雪（'open'で発火。マーカーに追従） -->
