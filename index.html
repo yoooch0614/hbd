@@ -3,9 +3,9 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-  <title>Happy Birthday AR 🎂</title>
+  <title>Happy Birthday AR</title>
 
-  <!-- A-Frame 1.3.0 + AR.js 3.4.5（安定して動く組み合わせ） -->
+  <!-- A-Frame 1.3.0 + AR.js 3.4.5 -->
   <script src="https://aframe.io/releases/1.3.0/aframe.min.js"></script>
   <script src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js@3.4.5/aframe/build/aframe-ar.js"></script>
   <!-- animation-mixer（スキン付きglTFアニメ再生用） -->
@@ -318,7 +318,7 @@
       <a-entity id="charTopper" position="0 0.66 0" scale="0 0 0"
                 animation__pop="property: scale; from: 0 0 0; to: 1 1 1; dur: 500; delay: 1700; easing: easeOutBack; startEvents: open">
         <a-entity id="charModelEnt" gltf-model="#charModel" animation-mixer="clip: *; loop: repeat"
-                  scale="16.5 16.5 16.5" position="0 0 0" rotation="0 0 0"></a-entity>
+                  scale="1 1 1" position="0 0 0" rotation="0 0 0"></a-entity>
       </a-entity>
 
       <!-- 紙吹雪（'open'で発火。マーカーに追従） -->
