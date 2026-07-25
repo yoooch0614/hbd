@@ -260,9 +260,24 @@
           hint.textContent = 'カードをタップして開いてね';
         });
         el.addEventListener('markerLost', function () {
+          if (self._closeTimer) { clearTimeout(self._closeTimer); self._closeTimer = null; }
           self.state = 'idle'; self._reset();
           hint.textContent = '再読み込みしてください';
         });
+
+        // 15秒後に全オブジェクトを縮小＆カードを閉じ、再タップで開けるよう ready に戻す
+        var CLOSE_AFTER = 15000;
+        var closeSeq = function () {
+          if (self.state !== 'opened') return;
+          fire(['cover', 'cakeWrap', 'charTopper', 'orbitCharParent'], 'close');
+          SFX.whoosh();
+          setTimeout(function () {
+            if (self.state === 'opened') {
+              self.state = 'ready';
+              hint.textContent = 'もう一度タップで開くよ';
+            }
+          }, 1200);
+        };
 
         var tap = function () {
           if (self.state === 'ready') {
@@ -275,6 +290,8 @@
               var cf = document.getElementById('confetti'); if (cf) cf.emit('open');
               SFX.pop();
             }, 950);
+            if (self._closeTimer) clearTimeout(self._closeTimer);
+            self._closeTimer = setTimeout(closeSeq, CLOSE_AFTER);  // ⏱ 15秒後に自動で閉じる
             hint.textContent = ' Happy Birthday! ';
           }
         };
@@ -287,6 +304,8 @@
         set('cover', 'rotation', '-90 0 0');
         set('cakeWrap', 'scale', '0 0 0');
         set('cakeWrap', 'rotation', '0 0 0');
+        set('charTopper', 'scale', '0 0 0');
+        set('orbitCharParent', 'scale', '0 0 0');
       }
     });
   </script>
@@ -328,7 +347,8 @@
         <!-- 表紙（奥の辺をヒンジに上へパタンと開く / 添付画像）
              閉: 平置きで画像が上向き, 開: 立ち上がって奥へ -->
         <a-entity id="cover" position="0 0.012 -0.75" rotation="-90 0 0"
-                  animation__open="property: rotation; from: -90 0 0; to: -170 0 0; dur: 1200; easing: easeInOutCubic; startEvents: open">
+                  animation__open="property: rotation; from: -90 0 0; to: -170 0 0; dur: 1200; easing: easeInOutCubic; startEvents: open"
+                  animation__close="property: rotation; from: -170 0 0; to: -90 0 0; dur: 1000; easing: easeInOutCubic; startEvents: close">
           <!-- 表：添付画像（閉じたとき上を向く面） -->
           <a-plane position="0 -0.75 0.0015" width="2.0" height="1.5"
                    material="src: #coverImg; side: front; shader: flat"></a-plane>
@@ -341,7 +361,8 @@
       <!-- ── ケーキ（開くと白紙の中央から回りながら生える） ── -->
       <a-entity id="cakeWrap" position="0 0 0" scale="0 0 0"
                 animation__grow="property: scale; from: 0 0 0; to: 1 1 1; dur: 1300; delay: 700; easing: easeOutBack; startEvents: open"
-                animation__spin="property: rotation; from: 0 360 0; to: 0 0 0; dur: 1500; delay: 700; easing: easeOutCubic; startEvents: open">
+                animation__spin="property: rotation; from: 0 360 0; to: 0 0 0; dur: 1500; delay: 700; easing: easeOutCubic; startEvents: open"
+                animation__shrink="property: scale; from: 1 1 1; to: 0 0 0; dur: 900; easing: easeInBack; startEvents: close">
         <!-- 足元のやわらかい光 -->
         <a-circle rotation="-90 0 0" radius="1.0" position="0 0.009 0"
                   material="shader: flat; color: #FFE9B0; opacity: 0.3; transparent: true; side: double"></a-circle>
@@ -351,14 +372,16 @@
       <!-- charModelEnt: scale0.1で高さ約0.4 / 足元=原点
            charTopper: y=0.88 でケーキ上面に立たせる。回転0=カメラ向き -->
       <a-entity id="charTopper" position="0 0.88 0" scale="0 0 0"
-                animation__pop="property: scale; from: 0 0 0; to: 1 1 1; dur: 500; delay: 1700; easing: easeOutBack; startEvents: open">
+                animation__pop="property: scale; from: 0 0 0; to: 1 1 1; dur: 500; delay: 1700; easing: easeOutBack; startEvents: open"
+                animation__shrink="property: scale; from: 1 1 1; to: 0 0 0; dur: 700; easing: easeInBack; startEvents: close">
         <a-entity id="charModelEnt" gltf-model="#charModel" animation-mixer="clip: *; loop: repeat"
                   scale="0.4 0.4 0.4" position="0 0 0" rotation="0 0 0"></a-entity>
       </a-entity>
 
       <!-- orbiting character around the cake -->
       <a-entity id="orbitCharParent" position="0 0 0" scale="0 0 0"
-                animation__pop="property: scale; from: 0 0 0; to: 1 1 1; dur: 500; delay: 1700; easing: easeOutBack; startEvents: open">
+                animation__pop="property: scale; from: 0 0 0; to: 1 1 1; dur: 500; delay: 1700; easing: easeOutBack; startEvents: open"
+                animation__shrink="property: scale; from: 1 1 1; to: 0 0 0; dur: 700; easing: easeInBack; startEvents: close">
         <a-entity id="orbitCharOrbit" position="0 0 0"
                   animation__orbit="property: rotation; from: 0 0 0; to: 0 360 0; dur: 14000; easing: linear; loop: true; startEvents: open">
           <a-entity gltf-model="#orbitCharModel" animation-mixer="clip: *; loop: repeat"
