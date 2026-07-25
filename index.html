@@ -285,18 +285,18 @@
                 animation__in="property: scale; from: 0 0 0; to: 1 1 1; dur: 450; easing: easeOutBack; startEvents: appear">
 
         <!-- 中身（白紙）: マーカー上に平置き -->
-        <a-plane id="cardBase" position="0 0.006 0" rotation="-90 0 0" width="1.0" height="0.75"
+        <a-plane id="cardBase" position="0 0.006 0" rotation="-90 0 0" width="2.0" height="1.5"
                  material="color: #FFFFFF; side: double; roughness: 1; metalness: 0"></a-plane>
 
         <!-- 表紙（奥の辺をヒンジに上へパタンと開く / 添付画像）
              閉: 平置きで画像が上向き, 開: 立ち上がって奥へ -->
-        <a-entity id="cover" position="0 0.012 -0.375" rotation="-90 0 0"
+        <a-entity id="cover" position="0 0.012 -0.75" rotation="-90 0 0"
                   animation__open="property: rotation; from: -90 0 0; to: -170 0 0; dur: 1200; easing: easeInOutCubic; startEvents: open">
           <!-- 表：添付画像（閉じたとき上を向く面） -->
-          <a-plane position="0 -0.375 0.0015" width="1.0" height="0.75"
+          <a-plane position="0 -0.75 0.0015" width="2.0" height="1.5"
                    material="src: #coverImg; side: front; shader: flat"></a-plane>
           <!-- 裏：白紙（開くと見える面。裏写り防止） -->
-          <a-plane position="0 -0.375 -0.0015" rotation="0 180 0" width="1.0" height="0.75"
+          <a-plane position="0 -0.75 -0.0015" rotation="0 180 0" width="2.0" height="1.5"
                    material="color: #FFFFFF; side: front; shader: flat"></a-plane>
         </a-entity>
       </a-entity>
@@ -306,19 +306,19 @@
                 animation__grow="property: scale; from: 0 0 0; to: 1 1 1; dur: 1300; delay: 700; easing: easeOutBack; startEvents: open"
                 animation__spin="property: rotation; from: 0 360 0; to: 0 0 0; dur: 1500; delay: 700; easing: easeOutCubic; startEvents: open">
         <!-- 足元のやわらかい光 -->
-        <a-circle rotation="-90 0 0" radius="0.5" position="0 0.009 0"
+        <a-circle rotation="-90 0 0" radius="1.0" position="0 0.009 0"
                   material="shader: flat; color: #FFE9B0; opacity: 0.3; transparent: true; side: double"></a-circle>
-        <!-- cake_rich.glb: スケール0.403で高さ約0.7 / y=0.351で底が接地（回転は生える時のみ） -->
-        <a-gltf-model src="#cakeModel" scale="0.403 0.403 0.403" position="0 0.351 0"></a-gltf-model>
+        <!-- cake_rich.glb: スケール0.806で高さ約1.4 / y=0.702で底が接地（回転は生える時のみ） -->
+        <a-gltf-model src="#cakeModel" scale="0.806 0.806 0.806" position="0 0.702 0"></a-gltf-model>
       </a-entity>
 
       <!-- ── ケーキの上のキャラ（アニメ付き / 開いてケーキが生えた後に登場） ── -->
-      <!-- charModelEnt: scale16.5で高さ約0.4（元モデルは0.024と極小のため拡大）/ 足元=原点
-           charTopper: y=0.66 でケーキ上面に立たせる。回転0=カメラ向き -->
-      <a-entity id="charTopper" position="0 0.66 0" scale="0 0 0"
+      <!-- charModelEnt: scale0.05で高さ約0.2 / 足元=原点
+           charTopper: y=0.72 でケーキ上面に立たせる。回転0=カメラ向き -->
+      <a-entity id="charTopper" position="0 0.72 0" scale="0 0 0"
                 animation__pop="property: scale; from: 0 0 0; to: 1 1 1; dur: 500; delay: 1700; easing: easeOutBack; startEvents: open">
         <a-entity id="charModelEnt" gltf-model="#charModel" animation-mixer="clip: *; loop: repeat"
-                  scale="0.1 0.1 0.1" position="0 0 0" rotation="0 0 0"></a-entity>
+                  scale="0.05 0.05 0.05" position="0 0 0" rotation="0 0 0"></a-entity>
       </a-entity>
 
       <!-- 紙吹雪（'open'で発火。マーカーに追従） -->
