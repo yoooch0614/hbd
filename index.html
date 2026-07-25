@@ -181,7 +181,7 @@
       _reset: function () {
         var set = function (id, a, v) { var e = document.getElementById(id); if (e) e.setAttribute(a, v); };
         set('cardGroup', 'scale', '0 0 0');
-        set('cover', 'rotation', '0 0 0');
+        set('cover', 'rotation', '-90 0 0');
         set('cakeWrap', 'scale', '0 0 0');
       }
     });
@@ -199,6 +199,7 @@
 
     <a-assets timeout="20000">
       <a-asset-item id="cakeModel" src="assets/cake_opt.glb"></a-asset-item>
+      <img id="coverImg" src="assets/card_cover.jpg" crossorigin="anonymous">
     </a-assets>
 
     <a-marker preset="hiro" id="marker" hbd-controller
@@ -210,39 +211,38 @@
       <a-entity light="type: point; color: #FFD9A0; intensity: 1.1; distance: 3; decay: 2" position="0 1.1 0.6"></a-entity>
       <a-entity light="type: point; color: #FF9DBE; intensity: 0.6; distance: 3; decay: 2" position="-0.6 0.4 0.4"></a-entity>
 
-      <!-- ── メッセージカード（検知で登場、タップで開く） ── -->
-      <a-entity id="cardGroup" position="0 0.65 -0.05" scale="0 0 0"
+      <!-- ── バースデーカード（マーカー上に寝かせて設置 / タップで上開き） ── -->
+      <a-entity id="cardGroup" position="0 0 0" scale="0 0 0"
                 animation__in="property: scale; from: 0 0 0; to: 1 1 1; dur: 450; easing: easeOutBack; startEvents: appear">
 
-        <!-- 内側（開くと見えるメッセージ面）※ name / message を編集して使う -->
-        <a-plane position="0 0 -0.03" width="1.0" height="1.3" material="side: double"
-                 card-face="variant: inside;
-                            name: ○○へ;
-                            message: お誕生日おめでとう！|素敵な一年になりますように|いつもありがとう"></a-plane>
+        <!-- 中身（白紙）: マーカー上に平置き -->
+        <a-plane id="cardBase" position="0 0.006 0" rotation="-90 0 0" width="1.0" height="0.75"
+                 material="color: #FFFFFF; side: double; roughness: 1; metalness: 0"></a-plane>
 
-        <!-- 表紙（左端をヒンジに本のように開く） -->
-        <a-entity id="cover" position="-0.5 0 0.015" rotation="0 0 0"
-                  animation__open="property: rotation; from: 0 0 0; to: 0 -150 0; dur: 1100; easing: easeInOutCubic; startEvents: open">
-          <a-plane position="0.5 0 0" width="1.0" height="1.3" material="side: double"
-                   card-face="variant: cover; title: Happy Birthday!; name: ○○へ"></a-plane>
+        <!-- 表紙（奥の辺をヒンジに上へパタンと開く / 添付画像）
+             閉: 平置きで画像が上向き, 開: 立ち上がって奥へ -->
+        <a-entity id="cover" position="0 0.012 -0.375" rotation="-90 0 0"
+                  animation__open="property: rotation; from: -90 0 0; to: -170 0 0; dur: 1200; easing: easeInOutCubic; startEvents: open">
+          <a-plane position="0 -0.375 0" width="1.0" height="0.75"
+                   material="src: #coverImg; side: double; shader: flat"></a-plane>
         </a-entity>
       </a-entity>
 
-      <!-- ── ケーキ（開くと回りながら地面から生える） ── -->
-      <a-entity id="cakeWrap" position="0 0 0.4" scale="0 0 0"
-                animation__grow="property: scale; from: 0 0 0; to: 1 1 1; dur: 1200; delay: 250; easing: easeOutBack; startEvents: open">
+      <!-- ── ケーキ（開くと白紙の中央から回りながら生える） ── -->
+      <a-entity id="cakeWrap" position="0 0 0" scale="0 0 0"
+                animation__grow="property: scale; from: 0 0 0; to: 1 1 1; dur: 1300; delay: 700; easing: easeOutBack; startEvents: open">
         <!-- 足元のやわらかい光 -->
-        <a-circle rotation="-90 0 0" radius="0.62" position="0 0.002 0"
-                  material="shader: flat; color: #FFE9B0; opacity: 0.28; transparent: true; side: double"></a-circle>
+        <a-circle rotation="-90 0 0" radius="0.5" position="0 0.009 0"
+                  material="shader: flat; color: #FFE9B0; opacity: 0.3; transparent: true; side: double"></a-circle>
         <!-- ゆっくり自転（生えながら回る） -->
         <a-entity animation__spin="property: rotation; from: 0 0 0; to: 0 360 0; dur: 7000; loop: true; easing: linear">
-          <!-- cake_opt.glb: スケール0.406で高さ約0.7 / y=0.348で底が地面に接地 -->
+          <!-- cake_opt.glb: スケール0.406で高さ約0.7 / y=0.348で底が接地 -->
           <a-gltf-model src="#cakeModel" scale="0.406 0.406 0.406" position="0 0.348 0"></a-gltf-model>
         </a-entity>
       </a-entity>
 
       <!-- 紙吹雪（'open'で発火。マーカーに追従） -->
-      <a-entity id="confetti" confetti="on: open; count: 70; spread: 1.5" position="0 0.4 0.35"></a-entity>
+      <a-entity id="confetti" confetti="on: open; count: 90; spread: 1.6" position="0 0.5 0"></a-entity>
 
     </a-marker>
 
