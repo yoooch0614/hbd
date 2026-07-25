@@ -149,11 +149,11 @@
     var RND_WIN  = ['usa_kick', 'usa_punch'];
     // action候補: file=assets/からの相対パス(拡張子なし), pos=配置。周回キャラも候補に含める
     var RND_ACTION = [
-      { file: 'random/action/kirua_breakdance', pos: '0 0 1.2' },      // kirua=前
-      { file: 'random/action/kirua_pendence',   pos: '0 0 1.2' },      // kirua=前
-      { file: 'random/action/momo_walk',        pos: '1.05 0 -0.95' }, // momo=右奥
-      { file: 'random/action/usa_breakdance',   pos: '-1.05 0 -0.95' },// usa=左奥
-      { file: 'character_orbit',                pos: '0 0 1.2' }        // 回転するやつも候補に
+      { file: 'random/action/kirua_breakdance', pos: '0 0 1.2' },   // kirua=前
+      { file: 'random/action/kirua_pendence',   pos: '0 0 1.2' },   // kirua=前
+      { file: 'random/action/momo_walk',        pos: '1.1 0 0' },   // momo=右中央
+      { file: 'random/action/usa_breakdance',   pos: '-1.1 0 0' },  // usa=左中央
+      { file: 'character_orbit',                pos: 'ORBIT' }       // 選ばれたら周回（正面には出さない）
     ];
 
     AFRAME.registerComponent('random-cast', {
@@ -161,6 +161,7 @@
         this.el.addEventListener('open', this.roll.bind(this));
       },
       pick: function (arr) { return arr[Math.floor(Math.random() * arr.length)]; },
+      clear: function (wrapId) { var w = document.getElementById(wrapId); if (w) { while (w.firstChild) w.removeChild(w.firstChild); } },
       // wrap の中身を作り直す（毎回新規生成 → アニメは頭から再生される）
       // アニメ開始は RND_DELAY 遅らせる（登場前に再生し終わってしまうのを防ぐ）
       build: function (wrapId, path, opts) {
@@ -182,34 +183,44 @@
         }, delay);
       },
       roll: function () {
-        // lose（1回のみ）＋ win（ループ）をケーキ左前に並べる／向きを90度回転／登場に合わせて再生
-        this.build('loseChar', 'assets/random/lose/' + this.pick(RND_LOSE) + '.glb', { loop: 'once',   rotation: '0 270 0', delay: 5700 });
+        // lose（1回のみ・向きを反転）＋ win（ループ・90度回転）をケーキ左前に並べる／登場に合わせて再生
+        this.build('loseChar', 'assets/random/lose/' + this.pick(RND_LOSE) + '.glb', { loop: 'once',   rotation: '0 90 0',  delay: 5700 });
         this.build('winChar',  'assets/random/win/'  + this.pick(RND_WIN)  + '.glb', { loop: 'repeat', rotation: '0 270 0', delay: 5700 });
-        // action：候補ごとに配置場所が決まっている（最後に登場）
+        // action：最後に登場。character_orbit が選ばれた時は正面に出さず周回させる
         var a = this.pick(RND_ACTION);
-        var wrap = document.getElementById('actionChar');
-        if (wrap) wrap.setAttribute('position', a.pos);
-        this.build('actionChar', 'assets/' + a.file + '.glb', { loop: 'repeat', delay: 7700 });
+        var orbitP = document.getElementById('orbitCharParent');
+        if (a.pos === 'ORBIT') {
+          if (orbitP) orbitP.setAttribute('data-shown', 'yes'); // クローズ時に縮小対象にする印
+          this.clear('actionChar');                 // 正面枠は空に
+          setTimeout(function () {                    // action枠のタイミングで周回開始
+            if (orbitP) orbitP.emit('orbitshow');
+            var o = document.getElementById('orbitCharOrbit'); if (o) o.emit('orbitshow');
+          }, 7600);
+        } else {
+          if (orbitP) orbitP.setAttribute('data-shown', ''); // 周回は出さない
+          var wrap = document.getElementById('actionChar');
+          if (wrap) wrap.setAttribute('position', a.pos);
+          this.build('actionChar', 'assets/' + a.file + '.glb', { loop: 'repeat', rotation: '0 0 0', delay: 7700 }); // 背中対策で180度（0向き）
+        }
       }
     });
 
     // ─────────────────────────────────────────────────────────
-    // ケーキ周回キャラ: 開くたびに向き・速さをランダム化（左横スタート）
+    // ケーキ周回キャラ: 'orbitshow' で周回開始（左横スタート・進行方向へ向く・速さのみランダム）
     // ─────────────────────────────────────────────────────────
     AFRAME.registerComponent('random-orbit', {
       go: function () {
         var el = this.el;
-        var dir = Math.random() < 0.5 ? 1 : -1;          // 回転方向ランダム
-        var dur = 9000 + Math.floor(Math.random() * 8000); // 1周9〜17秒
-        var start = 180;                                  // 左横からスタート
-        var end = start + dir * 360;
+        var dur = 9000 + Math.floor(Math.random() * 8000); // 1周9〜17秒（速さのみランダム）
+        var start = 180;                                    // 左横からスタート
+        var end = start + 360;                              // 進行方向を一定に（逆回り防止）
         el.removeAttribute('animation__orbit');
         setTimeout(function () {
           el.setAttribute('animation__orbit',
             'property: rotation; from: 0 ' + start + ' 0; to: 0 ' + end + ' 0; dur: ' + dur + '; easing: linear; loop: true');
         }, 0);
       },
-      init: function () { this.el.addEventListener('open', this.go.bind(this)); }
+      init: function () { this.el.addEventListener('orbitshow', this.go.bind(this)); }
     });
 
     // ─────────────────────────────────────────────────────────
@@ -376,7 +387,10 @@
         var CLOSE_AFTER = 10000;
         var closeSeq = function () {
           if (self.state !== 'opened') return;
-          fire(['cover', 'cakeWrap', 'charTopper', 'orbitCharParent', 'bunnyWrap', 'loseChar', 'winChar', 'actionChar'], 'close');
+          var closeIds = ['cover', 'cakeWrap', 'charTopper', 'bunnyWrap', 'loseChar', 'winChar', 'actionChar'];
+          var ob = document.getElementById('orbitCharParent');
+          if (ob && ob.getAttribute('data-shown') === 'yes') closeIds.push('orbitCharParent'); // 出ていた時だけ縮小（未表示のフラッシュ防止）
+          fire(closeIds, 'close');
           SFX.whoosh();
           setTimeout(function () {
             if (self.state === 'opened') {
@@ -390,7 +404,7 @@
           if (self.state === 'ready') {
             self.state = 'opened';
             SFX.ac();                                   // タップ（ユーザー操作）で音声を有効化
-            fire(['cover', 'cakeWrap', 'charTopper', 'orbitCharParent', 'orbitCharOrbit', 'bunnyWrap', 'loseChar', 'winChar', 'actionChar', 'randomCast'], 'open'); // カード開く＋ケーキ生える(700ms)＋キャラ登場(1700ms)＋周回＋バニー＋ランダム出演
+            fire(['cover', 'cakeWrap', 'charTopper', 'bunnyWrap', 'loseChar', 'winChar', 'actionChar', 'randomCast'], 'open'); // カード開く＋ケーキ＋順次登場＋ランダム出演（周回はactionで選ばれた時のみ）
             SFX.whoosh();                               // 🔊 開く音
             setTimeout(function () { SFX.chime(); }, 700);   // 🔊 ケーキ出現音（生え始めに同期）
             setTimeout(function () {                          // 🔊 花吹雪（音と同時に発火）
@@ -496,14 +510,14 @@
                   scale="0.4 0.4 0.4" position="0 0 0" rotation="0 0 0"></a-entity>
       </a-entity>
 
-      <!-- orbiting character around the cake -->
+      <!-- ケーキの周りをまわるキャラ（毎回は出さない / actionでcharacter_orbitが選ばれた時だけ 'orbitshow' で登場） -->
       <a-entity id="orbitCharParent" position="0 0 0" scale="0 0 0"
-                animation__pop="property: scale; from: 0 0 0; to: 1 1 1; dur: 500; delay: 1700; easing: easeOutBack; startEvents: open"
+                animation__pop="property: scale; from: 0 0 0; to: 1 1 1; dur: 500; delay: 0; easing: easeOutBack; startEvents: orbitshow"
                 animation__shrink="property: scale; from: 1 1 1; to: 0 0 0; dur: 700; easing: easeInBack; startEvents: close">
-        <!-- random-orbit が開くたびに向き・速さをランダム化（左横スタート） -->
+        <!-- random-orbit が速さをランダム化（左横スタート・進行方向へ向く） -->
         <a-entity id="orbitCharOrbit" position="0 0 0" random-orbit>
           <a-entity gltf-model="#orbitCharModel" animation-mixer="clip: *; loop: repeat"
-                    scale="0.267 0.267 0.267" position="1.1 0 0" rotation="0 180 0"></a-entity>
+                    scale="0.267 0.267 0.267" position="1.1 0 0" rotation="0 0 0"></a-entity>
         </a-entity>
       </a-entity>
 
