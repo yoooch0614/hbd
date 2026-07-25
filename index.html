@@ -106,6 +106,104 @@
     });
 
     // ─────────────────────────────────────────────────────────
+    // モデルのテクスチャをそのまま表示（陰影計算を切って“くすみ/汚れ”を回避）
+    //  Meshy等の焼き込みテクスチャ用。ライトの陰影やAOの二重掛かりを防ぐ。
+    // ─────────────────────────────────────────────────────────
+    AFRAME.registerComponent('unlit-model', {
+      schema: { brightness: { default: 1.0 } },   // 明るさ微調整（1=そのまま）
+      init: function () {
+        var el = this.el, b = this.data.brightness;
+        el.addEventListener('model-loaded', function () {
+          var mesh = el.getObject3D('mesh');
+          if (!mesh) return;
+          mesh.traverse(function (node) {
+            if (!node.isMesh || !node.material) return;
+            var mats = Array.isArray(node.material) ? node.material : [node.material];
+            var conv = mats.map(function (m) {
+              var basic = new THREE.MeshBasicMaterial({
+                map: m.map || null,
+                color: new THREE.Color(b, b, b),   // 焼き込み色をそのまま（必要なら明るさ調整）
+                transparent: m.transparent,
+                opacity: m.opacity,
+                alphaTest: m.alphaTest,
+                side: m.side
+              });
+              basic.toneMapped = false;             // トーンマッピングによる色のくすみを防止
+              return basic;
+            });
+            node.material = Array.isArray(node.material) ? conv : conv[0];
+          });
+        });
+      }
+    });
+
+    // ─────────────────────────────────────────────────────────
+    // ランダム出演: カードを開くたびに lose/win/action からランダム選出
+    //  - lose: 1体（アニメは1回のみ・最後の姿で静止）
+    //  - win : 1体（ループ）／ lose と並べてケーキ左前に配置
+    //  - action: 1体（ループ）／ kirua=前, momo=右奥, usa=左奥 に配置
+    // ─────────────────────────────────────────────────────────
+    var RND_LOSE = ['kirua_KO', 'kirua_down', 'momo_down', 'momo_shotdown', 'momo_wdown', 'usa_down', 'usa_shotdown'];
+    var RND_WIN  = ['usa_kick', 'usa_punch'];
+    var RND_ACTION = ['kirua_breakdance', 'kirua_pendence', 'momo_walk', 'usa_breakdance'];
+
+    AFRAME.registerComponent('random-cast', {
+      init: function () {
+        this.el.addEventListener('open', this.roll.bind(this));
+      },
+      pick: function (arr) { return arr[Math.floor(Math.random() * arr.length)]; },
+      // wrap の中身を作り直す（毎回新規生成 → アニメは頭から再生される）
+      build: function (wrapId, path, opts) {
+        var wrap = document.getElementById(wrapId);
+        if (!wrap) return;
+        while (wrap.firstChild) wrap.removeChild(wrap.firstChild);
+        var m = document.createElement('a-entity');
+        m.setAttribute('gltf-model', path);
+        var mix = (opts.loop === 'once')
+          ? 'clip: *; loop: once; clampWhenFinished: true'
+          : 'clip: *; loop: repeat';
+        m.setAttribute('animation-mixer', mix);
+        m.setAttribute('scale', opts.scale || '0.4 0.4 0.4');
+        m.setAttribute('position', '0 0 0');
+        m.setAttribute('rotation', opts.rotation || '0 180 0'); // カメラ向き
+        wrap.appendChild(m);
+      },
+      roll: function () {
+        // lose（1回のみ）＋ win（ループ）をケーキ左前に並べる
+        this.build('loseChar', 'assets/random/lose/' + this.pick(RND_LOSE) + '.glb', { loop: 'once' });
+        this.build('winChar',  'assets/random/win/'  + this.pick(RND_WIN)  + '.glb', { loop: 'repeat' });
+        // action：キャラで配置場所が変わる
+        var a = this.pick(RND_ACTION);
+        var pos;
+        if (a.indexOf('kirua') === 0)      pos = '0 0 1.2';      // 前
+        else if (a.indexOf('momo') === 0)  pos = '1.05 0 -0.95'; // 右奥
+        else                                pos = '-1.05 0 -0.95'; // usa 左奥
+        var wrap = document.getElementById('actionChar');
+        if (wrap) wrap.setAttribute('position', pos);
+        this.build('actionChar', 'assets/random/action/' + a + '.glb', { loop: 'repeat' });
+      }
+    });
+
+    // ─────────────────────────────────────────────────────────
+    // ケーキ周回キャラ: 開くたびに向き・速さをランダム化（左横スタート）
+    // ─────────────────────────────────────────────────────────
+    AFRAME.registerComponent('random-orbit', {
+      go: function () {
+        var el = this.el;
+        var dir = Math.random() < 0.5 ? 1 : -1;          // 回転方向ランダム
+        var dur = 9000 + Math.floor(Math.random() * 8000); // 1周9〜17秒
+        var start = 180;                                  // 左横からスタート
+        var end = start + dir * 360;
+        el.removeAttribute('animation__orbit');
+        setTimeout(function () {
+          el.setAttribute('animation__orbit',
+            'property: rotation; from: 0 ' + start + ' 0; to: 0 ' + end + ' 0; dur: ' + dur + '; easing: linear; loop: true');
+        }, 0);
+      },
+      init: function () { this.el.addEventListener('open', this.go.bind(this)); }
+    });
+
+    // ─────────────────────────────────────────────────────────
     // 紙吹雪バースト（'open' イベントで発火）
     // ─────────────────────────────────────────────────────────
     AFRAME.registerComponent('confetti', {
@@ -265,11 +363,11 @@
           hint.textContent = '再読み込みしてください';
         });
 
-        // 15秒後に全オブジェクトを縮小＆カードを閉じ、再タップで開けるよう ready に戻す
-        var CLOSE_AFTER = 15000;
+        // 7秒後に全オブジェクトを縮小＆カードを閉じ、再タップで開けるよう ready に戻す
+        var CLOSE_AFTER = 7000;
         var closeSeq = function () {
           if (self.state !== 'opened') return;
-          fire(['cover', 'cakeWrap', 'charTopper', 'orbitCharParent', 'bunnyWrap'], 'close');
+          fire(['cover', 'cakeWrap', 'charTopper', 'orbitCharParent', 'bunnyWrap', 'loseChar', 'winChar', 'actionChar'], 'close');
           SFX.whoosh();
           setTimeout(function () {
             if (self.state === 'opened') {
@@ -283,7 +381,7 @@
           if (self.state === 'ready') {
             self.state = 'opened';
             SFX.ac();                                   // タップ（ユーザー操作）で音声を有効化
-            fire(['cover', 'cakeWrap', 'charTopper', 'orbitCharParent', 'orbitCharOrbit', 'bunnyWrap'], 'open'); // カード開く＋ケーキ生える(700ms)＋キャラ登場(1700ms)＋周回開始＋バニー登場
+            fire(['cover', 'cakeWrap', 'charTopper', 'orbitCharParent', 'orbitCharOrbit', 'bunnyWrap', 'loseChar', 'winChar', 'actionChar', 'randomCast'], 'open'); // カード開く＋ケーキ生える(700ms)＋キャラ登場(1700ms)＋周回＋バニー＋ランダム出演
             SFX.whoosh();                               // 🔊 開く音
             setTimeout(function () { SFX.chime(); }, 700);   // 🔊 ケーキ出現音（生え始めに同期）
             setTimeout(function () {                          // 🔊 花吹雪（音と同時に発火）
@@ -307,6 +405,9 @@
         set('charTopper', 'scale', '0 0 0');
         set('orbitCharParent', 'scale', '0 0 0');
         set('bunnyWrap', 'scale', '0 0 0');
+        set('loseChar', 'scale', '0 0 0');
+        set('winChar', 'scale', '0 0 0');
+        set('actionChar', 'scale', '0 0 0');
       }
     });
   </script>
@@ -368,8 +469,12 @@
         <!-- 足元のやわらかい光 -->
         <a-circle rotation="-90 0 0" radius="1.0" position="0 0.009 0"
                   material="shader: flat; color: #FFE9B0; opacity: 0.3; transparent: true; side: double"></a-circle>
-        <!-- cake_rich.glb: スケール0.806で高さ約1.4 / y=0.702で底が接地（回転は生える時のみ） -->
-        <a-gltf-model src="#cakeModel" scale="0.806 0.806 0.806" position="0 0.702 0"></a-gltf-model>
+        <!-- cake_rich.glb: スケール0.806で高さ約1.4 / y=0.702で底が接地 -->
+        <!-- 内側でゆっくり常時回転（生える時のcakeWrap回転とは別軸なので競合しない） -->
+        <a-entity id="cakeSpin"
+                  animation__slowrot="property: rotation; from: 0 0 0; to: 0 360 0; dur: 22000; easing: linear; loop: true; startEvents: open">
+          <a-gltf-model src="#cakeModel" scale="0.806 0.806 0.806" position="0 0.702 0"></a-gltf-model>
+        </a-entity>
       </a-entity>
 
       <!-- ── ケーキの上のキャラ（アニメ付き / 開いてケーキが生えた後に登場） ── -->
@@ -386,8 +491,8 @@
       <a-entity id="orbitCharParent" position="0 0 0" scale="0 0 0"
                 animation__pop="property: scale; from: 0 0 0; to: 1 1 1; dur: 500; delay: 1700; easing: easeOutBack; startEvents: open"
                 animation__shrink="property: scale; from: 1 1 1; to: 0 0 0; dur: 700; easing: easeInBack; startEvents: close">
-        <a-entity id="orbitCharOrbit" position="0 0 0"
-                  animation__orbit="property: rotation; from: 0 0 0; to: 0 360 0; dur: 14000; easing: linear; loop: true; startEvents: open">
+        <!-- random-orbit が開くたびに向き・速さをランダム化（左横スタート） -->
+        <a-entity id="orbitCharOrbit" position="0 0 0" random-orbit>
           <a-entity gltf-model="#orbitCharModel" animation-mixer="clip: *; loop: repeat"
                     scale="0.267 0.267 0.267" position="1.1 0 0" rotation="0 180 0"></a-entity>
         </a-entity>
@@ -401,10 +506,25 @@
         <a-entity id="bunnyHop"
                   animation__hop="property: position; from: 0 0 0; to: 0 0.22 0; dir: alternate; loop: true; dur: 320; easing: easeOutQuad">
           <!-- 体の揺れ（左右へわずかに傾く） -->
-          <a-entity gltf-model="#bunnyModel" scale="0.4 0.4 0.4" position="0 0 0" rotation="0 0 0"
+          <a-entity gltf-model="#bunnyModel" unlit-model="brightness: 1.0" scale="0.4 0.4 0.4" position="0 0 0" rotation="0 0 0"
                     animation__sway="property: rotation; from: 0 0 -7; to: 0 0 7; dir: alternate; loop: true; dur: 640; easing: easeInOutSine"></a-entity>
         </a-entity>
       </a-entity>
+
+      <!-- ── ランダム出演キャラ（開くたびに中身をrandom-castが差し替え） ── -->
+      <!-- ケーキ左前に lose と win を並べる -->
+      <a-entity id="loseChar" position="-1.1 0 0.75" scale="0 0 0"
+                animation__pop="property: scale; from: 0 0 0; to: 1 1 1; dur: 500; delay: 1700; easing: easeOutBack; startEvents: open"
+                animation__shrink="property: scale; from: 1 1 1; to: 0 0 0; dur: 700; easing: easeInBack; startEvents: close"></a-entity>
+      <a-entity id="winChar" position="-0.55 0 0.98" scale="0 0 0"
+                animation__pop="property: scale; from: 0 0 0; to: 1 1 1; dur: 500; delay: 1700; easing: easeOutBack; startEvents: open"
+                animation__shrink="property: scale; from: 1 1 1; to: 0 0 0; dur: 700; easing: easeInBack; startEvents: close"></a-entity>
+      <!-- action（位置はrandom-castがキャラに応じて設定） -->
+      <a-entity id="actionChar" position="0 0 1.2" scale="0 0 0"
+                animation__pop="property: scale; from: 0 0 0; to: 1 1 1; dur: 500; delay: 1700; easing: easeOutBack; startEvents: open"
+                animation__shrink="property: scale; from: 1 1 1; to: 0 0 0; dur: 700; easing: easeInBack; startEvents: close"></a-entity>
+      <!-- ランダム抽選のホスト（openを受けて上記3枠を毎回差し替え） -->
+      <a-entity id="randomCast" random-cast></a-entity>
 
       <!-- 紙吹雪（'open'で発火。マーカーに追従） -->
       <a-entity id="confetti" confetti="on: open; count: 90; spread: 1.6" position="0 0.5 0"></a-entity>
