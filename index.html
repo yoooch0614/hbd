@@ -205,6 +205,42 @@
       return { ac: ac, whoosh: whoosh, chime: chime, pop: pop };
     })();
 
+    function setHint(text) {
+      var hint = document.getElementById('hint');
+      if (hint) hint.textContent = text;
+    }
+    function initCameraHint() {
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        setHint('カメラに対応していません');
+        return;
+      }
+      setHint('ロード中、少々お待ちください');
+      if (navigator.permissions && navigator.permissions.query) {
+        navigator.permissions.query({ name: 'camera' }).then(function (result) {
+          if (result.state === 'granted') {
+            setHint('カメラが認証されたらマーカーを移してください');
+          } else if (result.state === 'denied') {
+            setHint('カメラの許可が必要です');
+          }
+          result.onchange = function () {
+            if (result.state === 'granted') {
+              setHint('カメラが認証されたらマーカーを移してください');
+            }
+          };
+        }).catch(function () {
+          // ignore permissions API errors
+        });
+      }
+      navigator.mediaDevices.getUserMedia({ video: true })
+        .then(function (stream) {
+          setHint('カメラが認証されたらマーカーを移してください');
+          stream.getTracks().forEach(function (track) { track.stop(); });
+        }).catch(function () {
+          setHint('カメラの許可が必要です');
+        });
+    }
+    document.addEventListener('DOMContentLoaded', initCameraHint);
+
     // ─────────────────────────────────────────────────────────
     // 進行管理: 検知→カードのみ表示 / タップ→開く / 見失う→リセット
     // ─────────────────────────────────────────────────────────
@@ -225,7 +261,7 @@
         });
         el.addEventListener('markerLost', function () {
           self.state = 'idle'; self._reset();
-          hint.textContent = '📷 Hiroマーカーにカメラを向けてね';
+          hint.textContent = 'マーカーを移してください';
         });
 
         var tap = function () {
@@ -257,7 +293,7 @@
 </head>
 
 <body>
-  <div id="hint">📷 Hiroマーカーにカメラを向けてね</div>
+  <div id="hint">ロード中、少々お待ちください</div>
 
   <a-scene
     vr-mode-ui="enabled: false"
@@ -271,7 +307,7 @@
       <img id="coverImg" src="assets/card_cover.jpg" crossorigin="anonymous">
     </a-assets>
 
-    <a-marker preset="hiro" id="marker" hbd-controller
+    <a-marker type="pattern" url="assets/markers/marker.patt" id="marker" hbd-controller
               smooth="true" smoothCount="8" smoothTolerance="0.01" smoothThreshold="4">
 
       <!-- マーカーに固定するライト（暖色の点光源で華やかに） -->
