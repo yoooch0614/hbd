@@ -154,19 +154,24 @@
         this.state = 'idle';
         this._reset();
 
+        // イベントは対象の子要素へ直接発火する（親→子には伝播しないため）
+        var fire = function (ids, evt) {
+          ids.forEach(function (id) { var e = document.getElementById(id); if (e) e.emit(evt); });
+        };
+
         el.addEventListener('markerFound', function () {
-          if (self.state === 'idle') { self.state = 'ready'; el.emit('appear'); }
+          if (self.state === 'idle') { self.state = 'ready'; fire(['cardGroup'], 'appear'); }
           hint.textContent = 'カードをタップして開いてね 💌';
         });
         el.addEventListener('markerLost', function () {
           self.state = 'idle'; self._reset();
-          hint.textContent = 'Hiroマーカーにカメラを向けてね 🎂';
+          hint.textContent = '📷 Hiroマーカーにカメラを向けてね';
         });
 
         var tap = function () {
           if (self.state === 'ready') {
             self.state = 'opened';
-            el.emit('open');
+            fire(['cover', 'cakeWrap', 'confetti'], 'open');
             hint.textContent = '🎉 Happy Birthday! 🎉';
           }
         };
@@ -237,7 +242,7 @@
       </a-entity>
 
       <!-- 紙吹雪（'open'で発火。マーカーに追従） -->
-      <a-entity confetti="on: open; count: 70; spread: 1.5" position="0 0.4 0.35"></a-entity>
+      <a-entity id="confetti" confetti="on: open; count: 70; spread: 1.5" position="0 0.4 0.35"></a-entity>
 
     </a-marker>
 
