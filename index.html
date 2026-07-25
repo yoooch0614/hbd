@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <title>Happy Birthday AR 🎂</title>
+
+  <!-- A-Frame + AR.js (安定して動く組み合わせ: A-Frame 1.3.0 + AR.js 3.4.x) -->
+  <script src="https://aframe.io/releases/1.3.0/aframe.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js@3.4.5/aframe/build/aframe-ar.js"></script>
+
+  <style>
+    html, body { margin: 0; overflow: hidden; font-family: system-ui, sans-serif; }
+    #hint {
+      position: fixed; left: 0; right: 0; bottom: 18px; z-index: 10;
+      text-align: center; color: #fff; font-size: 15px; font-weight: 600;
+      text-shadow: 0 1px 4px #000; pointer-events: none; padding: 0 16px;
+    }
+    /* A-Frame が挿入するローディング画面の見た目 */
+    .a-enter-vr, .a-enter-ar { display: none !important; }
+  </style>
+
+  <script>
+    // ── キャラを時々ウインクさせる ────────────────────────────
+    AFRAME.registerComponent('winker', {
+      schema: { eye: { type: 'selector' }, min: { default: 2000 }, max: { default: 5000 } },
+      init: function () { this.t = 0; this.next = this._rand(); },
+      _rand: function () { return this.data.min + Math.random() * (this.data.max - this.data.min); },
+      tick: function (time, dt) {
+        if (!dt) return;
+        this.t += dt;
+        if (this.t >= this.next) {
+          this.t = 0;
+          this.next = this._rand();
+          if (this.data.eye) this.data.eye.emit('dowink');
+        }
+      }
+    });
+
+    // ── マーカー検出で演出を再生 / 見失ったらリセット ──────────
+    AFRAME.registerComponent('hbd-controller', {
+      init: function () {
+        var el = this.el;
+        var self = this;
+        var hint = document.getElementById('hint');
+        self._reset();
+        el.addEventListener('markerFound', function () {
+          hint.textContent = '🎉 Happy Birthday! 🎉';
+          el.emit('play');
+        });
+        el.addEventListener('markerLost', function () {
+          hint.textContent = 'Hiroマーカーにカメラを向けてね 🎂';
+          self._reset();
+        });
+      },
+      _reset: function () {
+        var set = function (id, attr, val) {
+          var e = document.getElementById(id);
+          if (e) e.setAttribute(attr, val);
+        };
+        set('lid', 'rotation', '0 0 0');
+        set('cake', 'scale', '0 0 0');
+        set('character', 'scale', '0 0 0');
+        set('bday', 'scale', '0 0 0');
+      }
+    });
+  </script>
+</head>
+
+<body>
+  <div id="hint">Hiroマーカーにカメラを向けてね 🎂</div>
+
+  <a-scene
+    vr-mode-ui="enabled: false"
+    renderer="logarithmicDepthBuffer: true; colorManagement: true;"
+    embedded
+    arjs="sourceType: webcam; debugUIEnabled: false;">
+
+    <a-marker preset="hiro" id="marker" hbd-controller
+              smooth="true" smoothCount="8" smoothTolerance="0.01" smoothThreshold="4">
+
+      <a-entity id="root" position="0 0 0">
+
+        <!-- ── メッセージカードのフタ（開く） ───────────────── -->
+        <!-- 後ろの辺をヒンジにして、手前へパタンと開く -->
+        <a-entity id="lid" position="0 0.02 -0.55" rotation="0 0 0"
+                  animation__open="property: rotation; from: 0 0 0; to: -115 0 0; dur: 800; easing: easeOutQuad; startEvents: play">
+          <a-plane position="0 0 0.55" rotation="-90 0 0" width="1.1" height="1.1"
+                   color="#E84C7A" material="side: double; metalness: 0; roughness: 0.9;">
+            <a-text value="To my friend" align="center" color="#FFF"
+                    position="0 0.28 0.01" width="1.6"></a-text>
+            <a-text value="&#x2764;" align="center" color="#FFE3EC"
+                    position="0 -0.05 0.01" width="3"></a-text>
+          </a-plane>
+        </a-entity>
+
+        <!-- ── 3段ケーキ（ポンと飛び出す） ─────────────────── -->
+        <a-entity id="cake" scale="0 0 0"
+                  animation__pop="property: scale; from: 0 0 0; to: 1 1 1; dur: 700; delay: 750; easing: easeOutBack; startEvents: play">
+          <!-- 下段 -->
+          <a-cylinder position="0 0.125 0" radius="0.5" height="0.25" color="#F7A8C4"></a-cylinder>
+          <!-- 中段 -->
+          <a-cylinder position="0 0.36 0" radius="0.36" height="0.22" color="#FFD6E8"></a-cylinder>
+          <!-- 上段 -->
+          <a-cylinder position="0 0.57 0" radius="0.23" height="0.20" color="#FFF0F6"></a-cylinder>
+          <!-- クリームの飾り（各段の縁） -->
+          <a-torus position="0 0.25 0"  radius="0.5"  radius-tubular="0.03" color="#FFFFFF" rotation="90 0 0"></a-torus>
+          <a-torus position="0 0.47 0"  radius="0.36" radius-tubular="0.03" color="#FFFFFF" rotation="90 0 0"></a-torus>
+
+          <!-- ロウソク3本 + 炎（チラチラ揺れる） -->
+          <a-entity position="-0.12 0.67 0">
+            <a-cylinder position="0 0.06 0" radius="0.015" height="0.12" color="#7EC8E3"></a-cylinder>
+            <a-sphere position="0 0.15 0" radius="0.03" color="#FFC24B"
+                      material="emissive: #FF8A00; emissiveIntensity: 1"
+                      animation__f="property: scale; from: 1 1 1; to: 1 1.4 1; dir: alternate; dur: 300; loop: true; easing: easeInOutSine"></a-sphere>
+          </a-entity>
+          <a-entity position="0.12 0.67 0">
+            <a-cylinder position="0 0.06 0" radius="0.015" height="0.12" color="#F7A8C4"></a-cylinder>
+            <a-sphere position="0 0.15 0" radius="0.03" color="#FFC24B"
+                      material="emissive: #FF8A00; emissiveIntensity: 1"
+                      animation__f="property: scale; from: 1 1 1; to: 1 1.4 1; dir: alternate; dur: 260; loop: true; easing: easeInOutSine"></a-sphere>
+          </a-entity>
+          <a-entity position="0 0.67 -0.13">
+            <a-cylinder position="0 0.06 0" radius="0.015" height="0.12" color="#B5E8B0"></a-cylinder>
+            <a-sphere position="0 0.15 0" radius="0.03" color="#FFC24B"
+                      material="emissive: #FF8A00; emissiveIntensity: 1"
+                      animation__f="property: scale; from: 1 1 1; to: 1 1.4 1; dir: alternate; dur: 340; loop: true; easing: easeInOutSine"></a-sphere>
+          </a-entity>
+        </a-entity>
+
+        <!-- ── キャラクター（登場して揺れる＋ウインク） ─────── -->
+        <!-- ※好きなキャラに差し替え可（下記READMEの「キャラ差し替え」参照） -->
+        <a-entity id="character" position="0 0.67 0.02" scale="0 0 0"
+                  winker="eye: #eyeR; min: 2500; max: 5000"
+                  animation__rise="property: scale; from: 0 0 0; to: 1 1 1; dur: 500; delay: 1500; easing: easeOutBack; startEvents: play">
+          <!-- 揺れ（ぷかぷか） -->
+          <a-entity animation__bob="property: position; from: 0 0.30 0; to: 0 0.36 0; dir: alternate; dur: 900; loop: true; easing: easeInOutSine">
+            <!-- 顔 -->
+            <a-sphere radius="0.18" color="#FFE08A"></a-sphere>
+            <!-- ほっぺ -->
+            <a-circle position="-0.11 -0.02 0.15" radius="0.035" color="#FF9BB3" rotation="0 0 0"></a-circle>
+            <a-circle position="0.11 -0.02 0.15" radius="0.035" color="#FF9BB3"></a-circle>
+            <!-- 目（左は常時パッチリ、右はウインクする） -->
+            <a-sphere id="eyeL" position="-0.07 0.05 0.16" radius="0.028" color="#333"></a-sphere>
+            <a-sphere id="eyeR" position="0.07 0.05 0.16" radius="0.028" color="#333"
+                      animation__wink="property: scale; from: 1 1 1; to: 1 0.12 1; dir: alternate; dur: 110; loop: 2; startEvents: dowink"></a-sphere>
+            <!-- 口 -->
+            <a-torus position="0 -0.04 0.16" radius="0.05" radius-tubular="0.012" color="#B5533C"
+                     rotation="0 0 180" theta-start="0" theta-length="180"></a-torus>
+          </a-entity>
+        </a-entity>
+
+        <!-- ── お祝いテキスト ──────────────────────────────── -->
+        <a-text id="bday" value="HAPPY BIRTHDAY!" align="center" color="#FF3E78"
+                position="0 1.35 0" rotation="-25 0 0" width="3" scale="0 0 0"
+                animation__show="property: scale; from: 0 0 0; to: 1 1 1; dur: 400; delay: 1900; easing: easeOutBack; startEvents: play"></a-text>
+
+      </a-entity>
+    </a-marker>
+
+    <!-- ライト -->
+    <a-entity light="type: ambient; intensity: 0.9"></a-entity>
+    <a-entity light="type: directional; intensity: 0.6" position="1 2 1"></a-entity>
+
+    <a-entity camera></a-entity>
+  </a-scene>
+</body>
+</html>
