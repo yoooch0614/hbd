@@ -147,13 +147,12 @@
     var RND_DELAY = 1900;                 // 登場後にアニメを再生開始する遅延(ms)
     var RND_LOSE = ['kirua_KO', 'kirua_down', 'momo_down', 'momo_shotdown', 'momo_wdown', 'usa_down', 'usa_shotdown'];
     var RND_WIN  = ['usa_kick', 'usa_punch'];
-    // action候補: file=assets/からの相対パス(拡張子なし), pos=配置。周回キャラも候補に含める
+    // action候補: file=assets/からの相対パス(拡張子なし), pos=配置。（周回キャラは候補から外した）
     var RND_ACTION = [
       { file: 'random/action/kirua_breakdance', pos: '0 0 1.2', scale: '0.347 0.347 0.347' },   // kirua=前(1.3倍)
       { file: 'random/action/kirua_pendence',   pos: '0 0 1.2', scale: '0.347 0.347 0.347' },   // kirua=前(1.3倍)
       { file: 'random/action/momo_walk',        pos: '1.1 0 0' },   // momo=右中央
-      { file: 'random/action/usa_breakdance',   pos: '-1.1 0 0' },  // usa=左中央
-      { file: 'character_orbit',                pos: 'ORBIT' }       // 選ばれたら周回（正面には出さない）
+      { file: 'random/action/usa_breakdance',   pos: '-1.1 0 0' }   // usa=左中央
     ];
 
     AFRAME.registerComponent('random-cast', {
@@ -184,22 +183,10 @@
       },
       roll: function () {
         // 登場順: action(5.6s) → lose/win(7.6s)
-        // action：character_orbit が選ばれた時は正面に出さず周回させる
         var a = this.pick(RND_ACTION);
-        var orbitP = document.getElementById('orbitCharParent');
-        if (a.pos === 'ORBIT') {
-          if (orbitP) orbitP.setAttribute('data-shown', 'yes'); // クローズ時に縮小対象にする印
-          this.clear('actionChar');                 // 正面枠は空に
-          setTimeout(function () {                    // action枠のタイミングで周回開始
-            if (orbitP) orbitP.emit('orbitshow');
-            var o = document.getElementById('orbitCharOrbit'); if (o) o.emit('orbitshow');
-          }, 5600);
-        } else {
-          if (orbitP) orbitP.setAttribute('data-shown', ''); // 周回は出さない
-          var wrap = document.getElementById('actionChar');
-          if (wrap) wrap.setAttribute('position', a.pos);
-          this.build('actionChar', 'assets/' + a.file + '.glb', { loop: 'repeat', rotation: '0 0 0', scale: a.scale, delay: 5700 }); // 前向き / kiruaは1.3倍
-        }
+        var wrap = document.getElementById('actionChar');
+        if (wrap) wrap.setAttribute('position', a.pos);
+        this.build('actionChar', 'assets/' + a.file + '.glb', { loop: 'repeat', rotation: '0 0 0', scale: a.scale, delay: 5700 }); // 前向き / kiruaは1.3倍
         // lose（1回のみ・向きを反転）＋ win（ループ・90度回転）をケーキ左前に並べる
         // loseのアニメはwinより0.5s遅らせる
         this.build('winChar',  'assets/random/win/'  + this.pick(RND_WIN)  + '.glb', { loop: 'repeat', rotation: '0 270 0', delay: 7700 });
@@ -222,7 +209,11 @@
             'property: rotation; from: 0 ' + start + ' 0; to: 0 ' + end + ' 0; dur: ' + dur + '; easing: linear; loop: true');
         }, 0);
       },
-      init: function () { this.el.addEventListener('orbitshow', this.go.bind(this)); }
+      init: function () {
+        var el = this.el;
+        el.addEventListener('orbitshow', this.go.bind(this));
+        el.addEventListener('orbithide', function () { el.removeAttribute('animation__orbit'); }); // 開いたら周回を止める
+      }
     });
 
     // ─────────────────────────────────────────────────────────
@@ -499,7 +490,11 @@
         };
 
         el.addEventListener('markerFound', function () {
-          if (self.state === 'idle') { self.state = 'ready'; fire(['cardGroup'], 'appear'); }
+          if (self.state === 'idle') {
+            self.state = 'ready';
+            fire(['cardGroup'], 'appear');
+            fire(['orbitCharParent', 'orbitCharOrbit'], 'orbitshow');   // カードが閉じている間、周回キャラを表示
+          }
           hint.textContent = 'カードをタップして開いてね';
         });
         el.addEventListener('markerLost', function () {
@@ -514,8 +509,6 @@
         var closeSeq = function () {
           if (self.state !== 'opened') return;
           var closeIds = ['cover', 'cakeWrap', 'charTopper', 'hbdTopper', 'bunnyWrap', 'loseChar', 'winChar', 'actionChar'];
-          var ob = document.getElementById('orbitCharParent');
-          if (ob && ob.getAttribute('data-shown') === 'yes') closeIds.push('orbitCharParent'); // 出ていた時だけ縮小（未表示のフラッシュ防止）
           fire(closeIds, 'close');
           SFX.whoosh();          // 🔊 めくる音（そのまま）
           SFX.melodyOff();       // 🔊 オルゴールを止める
@@ -523,6 +516,7 @@
           setTimeout(function () {
             if (self.state === 'opened') {
               self.state = 'ready';
+              fire(['orbitCharParent', 'orbitCharOrbit'], 'orbitshow');  // 閉じたら周回キャラを再表示
               hint.textContent = 'もう一度タップで開くよ';
             }
           }, 1200);
@@ -533,6 +527,7 @@
             self.state = 'opened';
             SFX.ac();                                   // タップ（ユーザー操作）で音声を有効化
             fire(['cover', 'cakeWrap', 'charTopper', 'hbdTopper', 'bunnyWrap', 'loseChar', 'winChar', 'actionChar', 'randomCast'], 'open'); // カード開く＋ケーキ＋HBD/Konoka＋順次登場＋ランダム出演
+            fire(['orbitCharParent', 'orbitCharOrbit'], 'orbithide');   // 開いたら周回キャラを隠す
             SFX.whoosh();                               // 🔊 めくる音（開いた瞬間はこれだけ）
             setTimeout(function () { if (self.state === 'opened') SFX.chime(); }, 700);   // 🔊 ケーキ出現音（生え始めに同期）
             setTimeout(function () {                          // 🔊 花吹雪（音と同時に発火）
@@ -677,10 +672,10 @@
         </a-entity>
       </a-entity>
 
-      <!-- ケーキの周りをまわるキャラ（毎回は出さない / actionでcharacter_orbitが選ばれた時だけ 'orbitshow' で登場） -->
+      <!-- ケーキの周りをまわるキャラ（カードが閉じている間だけ表示 / 'orbitshow'で登場・'orbithide'で退場） -->
       <a-entity id="orbitCharParent" position="0 0 0" scale="0 0 0"
                 animation__pop="property: scale; from: 0 0 0; to: 1 1 1; dur: 500; delay: 0; easing: easeOutBack; startEvents: orbitshow"
-                animation__shrink="property: scale; from: 1 1 1; to: 0 0 0; dur: 700; easing: easeInBack; startEvents: close">
+                animation__shrink="property: scale; from: 1 1 1; to: 0 0 0; dur: 500; easing: easeInBack; startEvents: orbithide">
         <!-- random-orbit が速さをランダム化（左横スタート・進行方向へ向く） -->
         <a-entity id="orbitCharOrbit" position="0 0 0" random-orbit>
           <a-entity gltf-model="url(assets/character_orbit.glb)" animation-mixer="clip: *; loop: repeat"
