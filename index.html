@@ -241,23 +241,22 @@
           var p = document.createElement('a-plane');
           p.setAttribute('width', 0.05); p.setAttribute('height', 0.08);
           p.setAttribute('material', 'shader: flat; side: double; color: ' + colors[i % colors.length] + '; opacity: 1');
-          // 中央のノズルから噴き出す: 開始は狭く低く → 上へ噴き上がり → 扇状に広がって落下
-          var x0 = (Math.random() - 0.5) * 0.12, y0 = 0.08 + Math.random() * 0.12, z0 = (Math.random() - 0.5) * 0.12;
+          var x0 = (Math.random() - 0.5) * 0.25, y0 = 0.25 + Math.random() * 0.15, z0 = (Math.random() - 0.5) * 0.25;
           p.setAttribute('position', x0 + ' ' + y0 + ' ' + z0);
           var tx = (Math.random() - 0.5) * this.data.spread;
-          var ty = 1.5 + Math.random() * 1.3;                     // 噴き上がる高さ（強め）
+          var ty = 0.9 + Math.random() * 0.9;
           var tz = (Math.random() - 0.5) * this.data.spread;
-          var px = x0 + tx * 0.22, py = y0 + ty, pz = z0 + tz * 0.22;  // 頂点は細く（噴射のコーン）
-          p.setAttribute('animation__up',   'property: position; to: ' + px + ' ' + py + ' ' + pz + '; dur: 430; easing: easeOutQuad');
-          p.setAttribute('animation__down', 'property: position; from: ' + px + ' ' + py + ' ' + pz + '; to: ' + (x0 + tx) + ' -0.05 ' + (z0 + tz) + '; dur: 2200; delay: 430; easing: easeInQuad');
+          var px = x0 + tx * 0.45, py = y0 + ty, pz = z0 + tz * 0.45;
+          p.setAttribute('animation__up',   'property: position; to: ' + px + ' ' + py + ' ' + pz + '; dur: 520; easing: easeOutQuad');
+          p.setAttribute('animation__down', 'property: position; from: ' + px + ' ' + py + ' ' + pz + '; to: ' + (x0 + tx) + ' -0.05 ' + (z0 + tz) + '; dur: 1900; delay: 520; easing: easeInQuad');
           p.setAttribute('animation__spin', 'property: rotation; to: ' + (Math.random() * 720) + ' ' + (Math.random() * 720) + ' ' + (Math.random() * 720) + '; dur: 2400; easing: linear');
-          p.setAttribute('animation__fade', 'property: material.opacity; from: 1; to: 0; dur: 800; delay: 2000; easing: linear');
+          p.setAttribute('animation__fade', 'property: material.opacity; from: 1; to: 0; dur: 700; delay: 1700; easing: linear');
           this.el.appendChild(p);
           this.pieces.push(p);
         }
         var self = this;
         if (this._to) clearTimeout(this._to);
-        this._to = setTimeout(function () { self.clear(); }, 3100);
+        this._to = setTimeout(function () { self.clear(); }, 2700);
       },
       clear: function () {
         for (var i = 0; i < this.pieces.length; i++) {
@@ -407,28 +406,17 @@
           bell(f, t + i * 0.06, 0.5, 0.09);
         }
       }
-      // ── キャラ登場音（旧・ぴょん音のスプリング感を流用） ──
-      function appear() {
+      // ── バニーのぴょん音 ──
+      function boing() {
         var c = ac(), t = c.currentTime;
         var o = c.createOscillator(); o.type = 'sine';
         o.frequency.setValueAtTime(220, t);
         o.frequency.exponentialRampToValueAtTime(520, t + 0.09);
         o.frequency.exponentialRampToValueAtTime(300, t + 0.2);
         var g = c.createGain();
-        g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(0.1, t + 0.01);
+        g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(0.09, t + 0.01);
         g.gain.exponentialRampToValueAtTime(0.0001, t + 0.22);
-        o.connect(g); send(g, 0.25); o.start(t); o.stop(t + 0.24);
-      }
-      // ── バニーのはねる音（新規: やわらかい “ぽよん”） ──
-      function hop() {
-        var c = ac(), t = c.currentTime;
-        var o = c.createOscillator(); o.type = 'triangle';
-        o.frequency.setValueAtTime(440, t);
-        o.frequency.exponentialRampToValueAtTime(170, t + 0.13);
-        var g = c.createGain();
-        g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(0.075, t + 0.008);
-        g.gain.exponentialRampToValueAtTime(0.0001, t + 0.15);
-        o.connect(g); send(g, 0.12); o.start(t); o.stop(t + 0.17);
+        o.connect(g); send(g, 0.2); o.start(t); o.stop(t + 0.24);
       }
       // ── 閉じる時のやさしい下降ベル ──
       function sparkleDown() {
@@ -438,7 +426,7 @@
 
       return {
         ac: ac, whoosh: whoosh, fanfare: fanfare, chime: chime, pop: pop,
-        melody: melody, melodyOff: melodyOff, twinkle: twinkle, appear: appear, hop: hop, sparkleDown: sparkleDown
+        melody: melody, melodyOff: melodyOff, twinkle: twinkle, boing: boing, sparkleDown: sparkleDown
       };
     })();
 
@@ -507,7 +495,7 @@
         var CLOSE_AFTER = 10000;
         var closeSeq = function () {
           if (self.state !== 'opened') return;
-          var closeIds = ['cover', 'cakeWrap', 'charTopper', 'hbdTopper', 'bunnyWrap', 'loseChar', 'winChar', 'actionChar'];
+          var closeIds = ['cover', 'cakeWrap', 'charTopper', 'bunnyWrap', 'loseChar', 'winChar', 'actionChar'];
           var ob = document.getElementById('orbitCharParent');
           if (ob && ob.getAttribute('data-shown') === 'yes') closeIds.push('orbitCharParent'); // 出ていた時だけ縮小（未表示のフラッシュ防止）
           fire(closeIds, 'close');
@@ -526,23 +514,19 @@
           if (self.state === 'ready') {
             self.state = 'opened';
             SFX.ac();                                   // タップ（ユーザー操作）で音声を有効化
-            fire(['cover', 'cakeWrap', 'charTopper', 'hbdTopper', 'bunnyWrap', 'loseChar', 'winChar', 'actionChar', 'randomCast'], 'open'); // カード開く＋ケーキ＋HBD/Konoka＋順次登場＋ランダム出演
+            fire(['cover', 'cakeWrap', 'charTopper', 'bunnyWrap', 'loseChar', 'winChar', 'actionChar', 'randomCast'], 'open'); // カード開く＋ケーキ＋順次登場＋ランダム出演（周回はactionで選ばれた時のみ）
             SFX.whoosh();                               // 🔊 めくる音（開いた瞬間はこれだけ）
-            setTimeout(function () { if (self.state === 'opened') SFX.chime(); }, 700);   // 🔊 ケーキ出現音（生え始めに同期）
+            setTimeout(function () { SFX.chime(); }, 700);   // 🔊 ケーキ出現音（生え始めに同期）
             setTimeout(function () {                          // 🔊 花吹雪（音と同時に発火）
-              if (self.state !== 'opened') return;
               var cf = document.getElementById('confetti'); if (cf) cf.emit('open');
               SFX.pop();
             }, 1050);
             setTimeout(function () { if (self.state === 'opened') SFX.melody(); }, 1500);  // 🔊 オルゴールでハッピーバースデー
-            setTimeout(function () { if (self.state === 'opened') SFX.appear(); }, 1650);  // 🔊 ケーキ上キャラ登場音
-            setTimeout(function () {                                                        // 🔊 バニーのはねる音（新しい“ぽよん”／跳ねに同期）
+            setTimeout(function () {                                                        // 🔊 バニーのぴょん音（跳ねに同期して数回）
               for (var k = 0; k < 5; k++) {
-                setTimeout(function () { if (self.state === 'opened') SFX.hop(); }, k * 640);
+                setTimeout(function () { if (self.state === 'opened') SFX.boing(); }, k * 640);
               }
             }, 3700);
-            setTimeout(function () { if (self.state === 'opened') SFX.appear(); }, 5650);  // 🔊 アクションキャラ登場音
-            setTimeout(function () { if (self.state === 'opened') SFX.appear(); }, 7650);  // 🔊 win/loseキャラ登場音
             if (self._closeTimer) clearTimeout(self._closeTimer);
             self._closeTimer = setTimeout(closeSeq, CLOSE_AFTER);  // ⏱ 15秒後に自動で閉じる
             hint.textContent = ' Happy Birthday! ';
@@ -553,26 +537,11 @@
       },
       _reset: function () {
         var set = function (id, a, v) { var e = document.getElementById(id); if (e) e.setAttribute(a, v); };
-        // 1) 予約・実行中の登場アニメ(anime.jsインスタンス)を一時停止 → 見失った後に遅延ポップが暴発するのを防ぐ。
-        //    アニメ定義自体は残すので、次の open で beginAnimation され新規再生される（＝正常に復帰）。
-        ['cardGroup', 'cover', 'cakeWrap', 'cakeSpin', 'charTopper', 'hbdTopper', 'hbdBob',
-         'orbitCharParent', 'orbitCharOrbit', 'bunnyWrap', 'loseChar', 'winChar', 'actionChar'].forEach(function (id) {
-          var e = document.getElementById(id); if (!e || !e.components) return;
-          Object.keys(e.components).forEach(function (n) {
-            if (n.indexOf('animation__') !== 0) return;
-            var c = e.components[n];
-            if (c && c.animation && typeof c.animation.pause === 'function') c.animation.pause();
-          });
-        });
-        var orb = document.getElementById('orbitCharOrbit'); if (orb) orb.removeAttribute('animation__orbit'); // random-orbitが動的付与する周回を除去
-        // 2) 基本姿勢へ戻す
         set('cardGroup', 'scale', '0 0 0');
         set('cover', 'rotation', '-90 0 0');
         set('cakeWrap', 'scale', '0 0 0');
         set('cakeWrap', 'rotation', '0 0 0');
         set('charTopper', 'scale', '0 0 0');
-        set('hbdTopper', 'scale', '0 0 0');
-        set('hbdTopper', 'position', '0 0.9 0');
         set('orbitCharParent', 'scale', '0 0 0');
         set('bunnyWrap', 'scale', '0 0 0');
         set('loseChar', 'scale', '0 0 0');
@@ -585,6 +554,7 @@
 
 <body>
   <div id="hint">ロード中、少々お待ちください</div>
+  <div id="ver" style="position:fixed; top:6px; right:8px; z-index:20; color:#fff; font-size:12px; font-weight:700; background:rgba(0,0,0,0.45); padding:2px 8px; border-radius:10px; pointer-events:none;">v-BASE</div>
 
   <a-scene
     vr-mode-ui="enabled: false"
@@ -657,11 +627,6 @@
                   scale="0.4 0.4 0.4" position="0 0 0" rotation="0 90 0"></a-entity>
       </a-entity>
 
-      <!-- ── HBD.glb ＋ Konoka.glb（原因切り分けのため一時無効化 / 定義はgit履歴 607c053 に保存済み） ──
-           理由: 実機でカメラが起動せず白画面。この重い2モデル(HBD 4MB / Konoka 13MB・高ポリ)が
-                 GPU/メモリ超過を起こしている疑い。まずこれを外してカメラ起動を確認する。
-                 起動が戻れば = 原因確定 → モデルを軽量化して再投入する。 -->
-
       <!-- ケーキの周りをまわるキャラ（毎回は出さない / actionでcharacter_orbitが選ばれた時だけ 'orbitshow' で登場） -->
       <a-entity id="orbitCharParent" position="0 0 0" scale="0 0 0"
                 animation__pop="property: scale; from: 0 0 0; to: 1 1 1; dur: 500; delay: 0; easing: easeOutBack; startEvents: orbitshow"
@@ -702,7 +667,7 @@
       <a-entity id="randomCast" random-cast></a-entity>
 
       <!-- 紙吹雪（'open'で発火。マーカーに追従） -->
-      <a-entity id="confetti" confetti="on: open; count: 130; spread: 2.2" position="0 0.2 0"></a-entity>
+      <a-entity id="confetti" confetti="on: open; count: 90; spread: 1.6" position="0 0.5 0"></a-entity>
 
     </a-marker>
 
