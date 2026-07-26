@@ -451,7 +451,9 @@
         setHint('カメラに対応していません');
         return;
       }
-      setHint('ロード中、少々お待ちください');
+      setHint('ロード中...（モデル読み込み中）');
+      // モデルが完全に読み込まれるまで少し待機
+      setTimeout(function() { setHint('ロード中...（あと少しお待ちください）'); }, 3000);
       if (navigator.permissions && navigator.permissions.query) {
         navigator.permissions.query({ name: 'camera' }).then(function (result) {
           if (result.state === 'granted') {
@@ -500,7 +502,7 @@
           if (self._closeTimer) { clearTimeout(self._closeTimer); self._closeTimer = null; }
           SFX.melodyOff();   // マーカーを見失ったらオルゴールも止める
           self.state = 'idle'; self._reset();
-          hint.textContent = '再読み込みしてください';
+          hint.textContent = '⚠再読み込みしてください';
         });
 
         // 10秒後に全オブジェクトを縮小＆カードを閉じ、再タップで開けるよう ready に戻す
@@ -596,7 +598,7 @@
     <!-- 重いGLBはプリロードせず、各モデルが直接URLで遅延読み込み（url(...)）する。
          → シーン起動はカード表紙の小さな画像だけ待てばよく、カメラ/カードが即表示される。
             ケーキ等は裏で読み込まれ、タップして開く頃には準備できている。 -->
-    <a-assets timeout="8000">
+    <a-assets timeout="20000">
       <img id="coverImg" src="assets/card_cover.jpg" crossorigin="anonymous">
     </a-assets>
 
