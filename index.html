@@ -248,16 +248,18 @@
           var ty = 1.5 + Math.random() * 1.3;                     // 噴き上がる高さ（強め）
           var tz = (Math.random() - 0.5) * this.data.spread;
           var px = x0 + tx * 0.22, py = y0 + ty, pz = z0 + tz * 0.22;  // 頂点は細く（噴射のコーン）
+          var lx = x0 + tx, lz = z0 + tz;                              // 着地点（地面に散らばる）
           p.setAttribute('animation__up',   'property: position; to: ' + px + ' ' + py + ' ' + pz + '; dur: 430; easing: easeOutQuad');
-          p.setAttribute('animation__down', 'property: position; from: ' + px + ' ' + py + ' ' + pz + '; to: ' + (x0 + tx) + ' -0.05 ' + (z0 + tz) + '; dur: 2200; delay: 430; easing: easeInQuad');
-          p.setAttribute('animation__spin', 'property: rotation; to: ' + (Math.random() * 720) + ' ' + (Math.random() * 720) + ' ' + (Math.random() * 720) + '; dur: 2400; easing: linear');
-          p.setAttribute('animation__fade', 'property: material.opacity; from: 1; to: 0; dur: 800; delay: 2000; easing: linear');
+          // 噴き上がり → 地面(y≈0.012)へ落下して着地 → そのまま散らばって残る
+          p.setAttribute('animation__down', 'property: position; from: ' + px + ' ' + py + ' ' + pz + '; to: ' + lx + ' 0.012 ' + lz + '; dur: 2200; delay: 430; easing: easeInQuad');
+          // 飛んでいる間くるくる → 着地時にはほぼ水平(-90)に寝る（フェードせず地面に残す）
+          p.setAttribute('animation__spin', 'property: rotation; to: -90 ' + (Math.random() * 720) + ' 0; dur: 2600; easing: easeOutQuad');
           this.el.appendChild(p);
           this.pieces.push(p);
         }
         var self = this;
         if (this._to) clearTimeout(this._to);
-        this._to = setTimeout(function () { self.clear(); }, 3100);
+        this._to = setTimeout(function () { self.clear(); }, 9500);  // 閉じる直前まで地面に残す
       },
       clear: function () {
         for (var i = 0; i < this.pieces.length; i++) {
@@ -661,7 +663,7 @@
       <!-- ── HBD.glb ＋ Konoka.glb（ケーキ上に飛び出して浮かぶ / HBDが上・Konokaが下・同時登場） ── -->
       <a-entity id="hbdTopper" position="0 0.9 0" scale="0 0 0"
                 animation__pop="property: scale; from: 0 0 0; to: 1 1 1; dur: 600; delay: 1200; easing: easeOutBack; startEvents: open"
-                animation__rise="property: position; from: 0 0.9 0; to: 0 1.5 0; dur: 750; delay: 1200; easing: easeOutBack; startEvents: open"
+                animation__rise="property: position; from: 0 0.9 0; to: 0 1.8 0; dur: 750; delay: 1200; easing: easeOutBack; startEvents: open"
                 animation__shrink="property: scale; from: 1 1 1; to: 0 0 0; dur: 700; easing: easeInBack; startEvents: close">
         <!-- 登場後にふわふわ上下 -->
         <a-entity id="hbdBob"
