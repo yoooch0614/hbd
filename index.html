@@ -274,7 +274,7 @@
     // 効果音（Web Audioで合成 / 音源ファイル不要）
     // ─────────────────────────────────────────────────────────
     var SFX = (function () {
-      var ctx = null, master = null, reverb = null, wet = null, melGain = null, melodyOn = false;
+      var ctx = null, master = null, reverb = null, wet = null, melGain = null, sfxGain = null, melodyOn = false;
 
       // 残響（リバーブ）用のインパルス応答をノイズから合成 → 全体に“空気感/豊かさ”を付与
       function makeIR(c, dur, decay) {
@@ -291,14 +291,15 @@
           master = ctx.createGain(); master.gain.value = 0.85; master.connect(ctx.destination);
           reverb = ctx.createConvolver(); reverb.buffer = makeIR(ctx, 2.4, 2.6);
           wet = ctx.createGain(); wet.gain.value = 0.32; reverb.connect(wet); wet.connect(master);
-          melGain = ctx.createGain(); melGain.gain.value = 0.55; melGain.connect(master); // オルゴール用（一括フェード可能に）
+          melGain = ctx.createGain(); melGain.gain.value = 1.0; melGain.connect(master);  // オルゴール(BGM)用。大きめに
+          sfxGain = ctx.createGain(); sfxGain.gain.value = 0.6; sfxGain.connect(master);  // 効果音(SE)用。控えめに
         }
         if (ctx.state === 'suspended') ctx.resume();
         return ctx;
       }
       // ノードを master（＋任意で reverb）へ接続。dest 指定でグループ（melGain 等）へ差し替え可
       function send(node, revAmt, dest) {
-        node.connect(dest || master);
+        node.connect(dest || sfxGain);   // 既定は効果音ゲート（SEはここで一括して音量調整）
         if (revAmt > 0) { var r = ctx.createGain(); r.gain.value = revAmt; node.connect(r); r.connect(reverb); }
       }
       // 単一オシレータのエンベロープ付きボイス
@@ -381,17 +382,18 @@
       // ── オルゴールで🎵ハッピーバースデー（開いてる間の主旋律） ──
       function melody() {
         var c = ac(); melodyOn = true;
-        melGain.gain.cancelScheduledValues(c.currentTime); melGain.gain.setValueAtTime(0.55, c.currentTime);
+        melGain.gain.cancelScheduledValues(c.currentTime); melGain.gain.setValueAtTime(1.0, c.currentTime);
         var t0 = c.currentTime + 0.05, b = 0.525; // 1拍（0.8倍速版: 0.42 * 1.25）
-        var G = 392, A = 440, B = 493.88, C = 523.25, D = 587.33;
+        var TR = 1.335;  // 完全4度上げて明るくハッピーに
+        var G = 392 * TR, A = 440 * TR, B = 493.88 * TR, C = 523.25 * TR, D = 587.33 * TR;
         var seq = [ // [周波数, 開始拍, 長さ拍]  ハッピーバースデー2フレーズ
           [G, 0, 0.75], [G, 0.75, 0.25], [A, 1, 1], [G, 2, 1], [C, 3, 1], [B, 4, 2],
           [G, 6, 0.75], [G, 6.75, 0.25], [A, 7, 1], [G, 8, 1], [D, 9, 1], [C, 10, 2]
         ];
-        seq.forEach(function (s) { bell(s[0], t0 + s[1] * b, Math.max(0.5, s[2] * b * 1.4), 0.13, melGain); });
+        seq.forEach(function (s) { bell(s[0], t0 + s[1] * b, Math.max(0.5, s[2] * b * 1.4), 0.16, melGain); });
         // やわらかいベース（小節頭）
         [[C / 2, 0], [G / 2, 3], [C / 2, 6], [G / 2, 9]].forEach(function (s) {
-          voice(s[0], t0 + s[1] * b, b * 2.4, { type: 'triangle', gain: 0.06, attack: 0.04, reverb: 0.5, dest: melGain });
+          voice(s[0], t0 + s[1] * b, b * 2.4, { type: 'triangle', gain: 0.08, attack: 0.04, reverb: 0.5, dest: melGain });
         });
       }
       function melodyOff() {
