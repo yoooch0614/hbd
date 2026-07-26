@@ -248,16 +248,20 @@
           var ty = 1.5 + Math.random() * 1.3;                     // 噴き上がる高さ（強め）
           var tz = (Math.random() - 0.5) * this.data.spread;
           var px = x0 + tx * 0.22, py = y0 + ty, pz = z0 + tz * 0.22;  // 頂点は細く（噴射のコーン）
+          var lx = x0 + tx, lz = z0 + tz;                              // 着地点（地面に散らばる）
           p.setAttribute('animation__up',   'property: position; to: ' + px + ' ' + py + ' ' + pz + '; dur: 430; easing: easeOutQuad');
-          p.setAttribute('animation__down', 'property: position; from: ' + px + ' ' + py + ' ' + pz + '; to: ' + (x0 + tx) + ' -0.05 ' + (z0 + tz) + '; dur: 2200; delay: 430; easing: easeInQuad');
-          p.setAttribute('animation__spin', 'property: rotation; to: ' + (Math.random() * 720) + ' ' + (Math.random() * 720) + ' ' + (Math.random() * 720) + '; dur: 2400; easing: linear');
-          p.setAttribute('animation__fade', 'property: material.opacity; from: 1; to: 0; dur: 800; delay: 2000; easing: linear');
+          // 噴き上がり → 地面(y≈0.012)へ落下して着地・そのまま散らばって残る
+          p.setAttribute('animation__down', 'property: position; from: ' + px + ' ' + py + ' ' + pz + '; to: ' + lx + ' 0.012 ' + lz + '; dur: 2200; delay: 430; easing: easeInQuad');
+          // 飛んでいる間にくるくる → 着地時にはほぼ水平(-90)に寝る
+          p.setAttribute('animation__spin', 'property: rotation; to: -90 ' + (Math.random() * 720) + ' 0; dur: 2600; easing: easeOutQuad');
+          // すぐには消えず、地面に積もったまましばらく残ってからフェード
+          p.setAttribute('animation__fade', 'property: material.opacity; from: 1; to: 0; dur: 1500; delay: 6500; easing: linear');
           this.el.appendChild(p);
           this.pieces.push(p);
         }
         var self = this;
         if (this._to) clearTimeout(this._to);
-        this._to = setTimeout(function () { self.clear(); }, 3100);
+        this._to = setTimeout(function () { self.clear(); }, 8200);
       },
       clear: function () {
         for (var i = 0; i < this.pieces.length; i++) {
@@ -265,6 +269,43 @@
           if (el.parentNode) el.parentNode.removeChild(el);
         }
         this.pieces = [];
+      }
+    });
+
+    // ─────────────────────────────────────────────────────────
+    // キラキラ演出（'open'で発火 / 一定時間キラッと光る粒を撒き続ける）
+    // ─────────────────────────────────────────────────────────
+    AFRAME.registerComponent('sparkle', {
+      schema: { on: { default: 'open' }, dur: { default: 8500 } },
+      init: function () { this.glints = []; this.el.addEventListener(this.data.on, this.start.bind(this)); },
+      start: function () {
+        this.clear();
+        var self = this, end = Date.now() + this.data.dur;
+        var colors = ['#FFF6B0', '#FFFFFF', '#FFE066', '#BFEfff'];
+        var spawn = function () {
+          if (Date.now() > end) return;
+          for (var i = 0; i < 3; i++) {
+            var g = document.createElement('a-plane');
+            var s = 0.05 + Math.random() * 0.07;
+            g.setAttribute('width', s); g.setAttribute('height', s);
+            g.setAttribute('material', 'shader: flat; transparent: true; opacity: 0; side: double; color: ' + colors[Math.floor(Math.random() * colors.length)]);
+            var x = (Math.random() - 0.5) * 2.4, y = 0.35 + Math.random() * 2.0, z = (Math.random() - 0.5) * 2.4;
+            g.setAttribute('position', x + ' ' + y + ' ' + z);
+            g.setAttribute('rotation', '0 0 45');                       // ダイヤ型でキラッと
+            g.setAttribute('animation__tw', 'property: material.opacity; from: 0; to: 0.95; dur: 190; dir: alternate; loop: 2; easing: easeInOutSine');
+            g.setAttribute('animation__pop', 'property: scale; from: 0.2 0.2 0.2; to: 1 1 1; dur: 240; dir: alternate; loop: 2; easing: easeOutBack');
+            g.setAttribute('animation__spin', 'property: rotation; to: 0 0 ' + (45 + 180) + '; dur: 760; easing: linear');
+            self.el.appendChild(g); self.glints.push(g);
+            (function (el2) { setTimeout(function () { if (el2.parentNode) el2.parentNode.removeChild(el2); var k = self.glints.indexOf(el2); if (k > -1) self.glints.splice(k, 1); }, 780); })(g);
+          }
+          self._t = setTimeout(spawn, 120 + Math.random() * 130);
+        };
+        spawn();
+      },
+      clear: function () {
+        if (this._t) clearTimeout(this._t);
+        for (var i = 0; i < this.glints.length; i++) { var e = this.glints[i]; if (e.parentNode) e.parentNode.removeChild(e); }
+        this.glints = [];
       }
     });
 
@@ -494,9 +535,32 @@
           ids.forEach(function (id) { var e = document.getElementById(id); if (e) e.emit(evt); });
         };
 
+        // ── モデル読み込み完了ゲート ──
+        // 遅延読み込みにしたため、読み込み前にタップして開くと中身が出ないことがある。
+        // 主要モデル（ケーキ/キャラ/バニー/HBD/Konoka）が揃うまで開けないようにする。
+        this.modelsReady = false;
+        var self2 = this;
+        var coreKeys = ['cake_rich', 'char_top', 'bunny.glb', 'HBD.glb', 'Konoka.glb'];
+        var core = Array.prototype.slice.call(el.querySelectorAll('[gltf-model], a-gltf-model')).filter(function (m) {
+          var s = (m.getAttribute('gltf-model') || '') + ' ' + (m.getAttribute('src') || '');
+          return coreKeys.some(function (k) { return s.indexOf(k) > -1; });
+        });
+        var loadedCount = 0, coreTotal = core.length;
+        var onReady = function () {
+          self2.modelsReady = true;
+          if (self2.state === 'ready') hint.textContent = 'カードをタップして開いてね';
+        };
+        core.forEach(function (m) {
+          if (m.getObject3D('mesh')) { loadedCount++; }
+          else m.addEventListener('model-loaded', function () { loadedCount++; if (loadedCount >= coreTotal) onReady(); }, { once: true });
+        });
+        if (coreTotal === 0 || loadedCount >= coreTotal) this.modelsReady = true;
+        // 保険: 読み込みが極端に遅い/失敗しても30秒で開けるようにする
+        setTimeout(function () { if (!self2.modelsReady) onReady(); }, 30000);
+
         el.addEventListener('markerFound', function () {
           if (self.state === 'idle') { self.state = 'ready'; fire(['cardGroup'], 'appear'); }
-          hint.textContent = 'カードをタップして開いてね';
+          hint.textContent = self.modelsReady ? 'カードをタップして開いてね' : '準備中… もう少し待ってね';
         });
         el.addEventListener('markerLost', function () {
           if (self._closeTimer) { clearTimeout(self._closeTimer); self._closeTimer = null; }
@@ -525,10 +589,14 @@
         };
 
         var tap = function () {
+          if (self.state === 'ready' && !self.modelsReady) {
+            hint.textContent = '準備中… もう少し待ってね';   // モデル読み込み中は開かない
+            return;
+          }
           if (self.state === 'ready') {
             self.state = 'opened';
             SFX.ac();                                   // タップ（ユーザー操作）で音声を有効化
-            fire(['cover', 'cakeWrap', 'charTopper', 'hbdTopper', 'bunnyWrap', 'loseChar', 'winChar', 'actionChar', 'randomCast'], 'open'); // カード開く＋ケーキ＋HBD/Konoka＋順次登場＋ランダム出演
+            fire(['cover', 'cakeWrap', 'charTopper', 'hbdTopper', 'bunnyWrap', 'loseChar', 'winChar', 'actionChar', 'randomCast', 'sparkle'], 'open'); // カード開く＋ケーキ＋HBD/Konoka＋順次登場＋ランダム出演＋キラキラ
             SFX.whoosh();                               // 🔊 めくる音（開いた瞬間はこれだけ）
             setTimeout(function () { if (self.state === 'opened') SFX.chime(); }, 700);   // 🔊 ケーキ出現音（生え始めに同期）
             setTimeout(function () {                          // 🔊 花吹雪（音と同時に発火）
@@ -574,7 +642,7 @@
         set('cakeWrap', 'rotation', '0 0 0');
         set('charTopper', 'scale', '0 0 0');
         set('hbdTopper', 'scale', '0 0 0');
-        set('hbdTopper', 'position', '0 0.9 0');
+        set('hbdTopper', 'position', '0 1.2 0');
         set('orbitCharParent', 'scale', '0 0 0');
         set('bunnyWrap', 'scale', '0 0 0');
         set('loseChar', 'scale', '0 0 0');
@@ -587,7 +655,7 @@
 
 <body>
   <div id="hint">ロード中、少々お待ちください</div>
-  <div id="ver" style="position:fixed; top:6px; right:8px; z-index:20; color:#fff; font-size:12px; font-weight:700; background:rgba(0,0,0,0.45); padding:2px 8px; border-radius:10px; pointer-events:none;">v2</div>
+  <div id="ver" style="position:fixed; top:6px; right:8px; z-index:20; color:#fff; font-size:12px; font-weight:700; background:rgba(0,0,0,0.45); padding:2px 8px; border-radius:10px; pointer-events:none;">v3</div>
 
   <a-scene
     vr-mode-ui="enabled: false"
@@ -660,17 +728,17 @@
       </a-entity>
 
       <!-- ── HBD.glb ＋ Konoka.glb（ケーキ上に飛び出して浮かぶ / HBDが上・Konokaが下・同時登場） ── -->
-      <a-entity id="hbdTopper" position="0 0.9 0" scale="0 0 0"
+      <a-entity id="hbdTopper" position="0 1.2 0" scale="0 0 0"
                 animation__pop="property: scale; from: 0 0 0; to: 1 1 1; dur: 600; delay: 1200; easing: easeOutBack; startEvents: open"
-                animation__rise="property: position; from: 0 0.9 0; to: 0 1.5 0; dur: 750; delay: 1200; easing: easeOutBack; startEvents: open"
+                animation__rise="property: position; from: 0 1.2 0; to: 0 1.85 0; dur: 750; delay: 1200; easing: easeOutBack; startEvents: open"
                 animation__shrink="property: scale; from: 1 1 1; to: 0 0 0; dur: 700; easing: easeInBack; startEvents: close">
         <!-- 登場後にふわふわ上下 -->
         <a-entity id="hbdBob"
                   animation__float="property: position; from: 0 0 0; to: 0 0.07 0; dir: alternate; loop: true; dur: 1500; delay: 1900; easing: easeInOutSine; startEvents: open">
-          <!-- HBD（上）: 幅約11.3 → scale0.18で幅約2.0 / 原点が左端なので x=-1.014 で中央寄せ -->
-          <a-gltf-model src="url(assets/HBD.glb)" scale="0.18 0.18 0.18" position="-1.014 0.4 0" rotation="0 0 0"></a-gltf-model>
-          <!-- Konoka（下）: 幅約2.67 → scale0.4で幅約1.07 / 原点が左寄りなので x=-0.526 で中央寄せ -->
-          <a-gltf-model src="url(assets/Konoka.glb)" scale="0.4 0.4 0.4" position="-0.526 0 0" rotation="0 0 0"></a-gltf-model>
+          <!-- HBD（上）: 幅約11.3 → scale0.18で幅約2.0 / x=-1.014で中央寄せ / rotation 90=寝ている文字を正面に立てる -->
+          <a-gltf-model src="url(assets/HBD.glb)" scale="0.18 0.18 0.18" position="-1.014 0.5 0" rotation="90 0 0"></a-gltf-model>
+          <!-- Konoka（下）: 幅約2.67 → scale0.4で幅約1.07 / x=-0.526で中央寄せ / rotation 90=正面に立てる -->
+          <a-gltf-model src="url(assets/Konoka.glb)" scale="0.4 0.4 0.4" position="-0.526 0 0" rotation="90 0 0"></a-gltf-model>
         </a-entity>
       </a-entity>
 
@@ -715,6 +783,9 @@
 
       <!-- 紙吹雪（'open'で発火。マーカーに追従） -->
       <a-entity id="confetti" confetti="on: open; count: 130; spread: 2.2" position="0 0.2 0"></a-entity>
+
+      <!-- キラキラ演出（'open'で発火。マーカーに追従） -->
+      <a-entity id="sparkle" sparkle="on: open" position="0 0 0"></a-entity>
 
     </a-marker>
 
