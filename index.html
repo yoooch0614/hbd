@@ -657,20 +657,10 @@
                   scale="0.4 0.4 0.4" position="0 0 0" rotation="0 90 0"></a-entity>
       </a-entity>
 
-      <!-- ── HBD.glb ＋ Konoka.glb（ケーキ上に飛び出して浮かぶ / HBDが上・Konokaが下・同時登場） ── -->
-      <a-entity id="hbdTopper" position="0 0.9 0" scale="0 0 0"
-                animation__pop="property: scale; from: 0 0 0; to: 1 1 1; dur: 600; delay: 1200; easing: easeOutBack; startEvents: open"
-                animation__rise="property: position; from: 0 0.9 0; to: 0 1.5 0; dur: 750; delay: 1200; easing: easeOutBack; startEvents: open"
-                animation__shrink="property: scale; from: 1 1 1; to: 0 0 0; dur: 700; easing: easeInBack; startEvents: close">
-        <!-- 登場後にふわふわ上下 -->
-        <a-entity id="hbdBob"
-                  animation__float="property: position; from: 0 0 0; to: 0 0.07 0; dir: alternate; loop: true; dur: 1500; delay: 1900; easing: easeInOutSine; startEvents: open">
-          <!-- HBD（上）: 幅約11.3 → scale0.18で幅約2.0 / 原点が左端なので x=-1.014 で中央寄せ -->
-          <a-gltf-model src="url(assets/HBD.glb)" scale="0.18 0.18 0.18" position="-1.014 0.4 0" rotation="0 0 0"></a-gltf-model>
-          <!-- Konoka（下）: 幅約2.67 → scale0.4で幅約1.07 / 原点が左寄りなので x=-0.526 で中央寄せ -->
-          <a-gltf-model src="url(assets/Konoka.glb)" scale="0.4 0.4 0.4" position="-0.526 0 0" rotation="0 0 0"></a-gltf-model>
-        </a-entity>
-      </a-entity>
+      <!-- ── HBD.glb ＋ Konoka.glb（原因切り分けのため一時無効化 / 定義はgit履歴 607c053 に保存済み） ──
+           理由: 実機でカメラが起動せず白画面。この重い2モデル(HBD 4MB / Konoka 13MB・高ポリ)が
+                 GPU/メモリ超過を起こしている疑い。まずこれを外してカメラ起動を確認する。
+                 起動が戻れば = 原因確定 → モデルを軽量化して再投入する。 -->
 
       <!-- ケーキの周りをまわるキャラ（毎回は出さない / actionでcharacter_orbitが選ばれた時だけ 'orbitshow' で登場） -->
       <a-entity id="orbitCharParent" position="0 0 0" scale="0 0 0"
