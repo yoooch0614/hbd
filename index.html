@@ -271,13 +271,55 @@
     // 効果音（Web Audioで合成 / 音源ファイル不要）
     // ─────────────────────────────────────────────────────────
     var SFX = (function () {
-      var ctx = null;
+      var ctx = null, master = null, reverb = null, wet = null, melGain = null, melodyOn = false;
+
+      // 残響（リバーブ）用のインパルス応答をノイズから合成 → 全体に“空気感/豊かさ”を付与
+      function makeIR(c, dur, decay) {
+        var rate = c.sampleRate, len = Math.floor(rate * dur), buf = c.createBuffer(2, len, rate);
+        for (var ch = 0; ch < 2; ch++) {
+          var d = buf.getChannelData(ch);
+          for (var i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, decay);
+        }
+        return buf;
+      }
       function ac() {
-        if (!ctx) ctx = new (window.AudioContext || window.webkitAudioContext)();
+        if (!ctx) {
+          ctx = new (window.AudioContext || window.webkitAudioContext)();
+          master = ctx.createGain(); master.gain.value = 0.85; master.connect(ctx.destination);
+          reverb = ctx.createConvolver(); reverb.buffer = makeIR(ctx, 2.4, 2.6);
+          wet = ctx.createGain(); wet.gain.value = 0.32; reverb.connect(wet); wet.connect(master);
+          melGain = ctx.createGain(); melGain.gain.value = 0.55; melGain.connect(master); // オルゴール用（一括フェード可能に）
+        }
         if (ctx.state === 'suspended') ctx.resume();
         return ctx;
       }
-      // カードを開く: やわらかいウーッシュ（ノイズを帯域掃引）
+      // ノードを master（＋任意で reverb）へ接続。dest 指定でグループ（melGain 等）へ差し替え可
+      function send(node, revAmt, dest) {
+        node.connect(dest || master);
+        if (revAmt > 0) { var r = ctx.createGain(); r.gain.value = revAmt; node.connect(r); r.connect(reverb); }
+      }
+      // 単一オシレータのエンベロープ付きボイス
+      function voice(freq, t, dur, o) {
+        o = o || {};
+        var osc = ctx.createOscillator(); osc.type = o.type || 'sine'; osc.frequency.setValueAtTime(freq, t);
+        if (o.glideTo) osc.frequency.exponentialRampToValueAtTime(o.glideTo, t + (o.glideDur || dur));
+        var g = ctx.createGain(), peak = (o.gain != null ? o.gain : 0.2), atk = (o.attack != null ? o.attack : 0.008);
+        g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(peak, t + atk);
+        g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+        osc.connect(g); send(g, o.reverb != null ? o.reverb : 0.5, o.dest);
+        osc.start(t); osc.stop(t + dur + 0.05);
+      }
+      // ベル/オルゴール音: 倍音を重ねてリッチな響きに（高次倍音ほど速く減衰）
+      function bell(freq, t, dur, gain, dest) {
+        gain = (gain != null ? gain : 0.2);
+        var parts = [[1, 1], [2, 0.45], [3, 0.26], [4.2, 0.15], [5.4, 0.08]];
+        parts.forEach(function (p, i) {
+          voice(freq * p[0], t, Math.max(0.22, dur * Math.pow(0.82, i)),
+            { type: 'sine', gain: gain * p[1], attack: 0.004, reverb: 0.45, dest: dest });
+        });
+      }
+
+      // ── カードを開く/閉じる: めくる音（そのまま維持） ──
       function whoosh() {
         var c = ac(), t = c.currentTime, dur = 0.55;
         var buf = c.createBuffer(1, Math.floor(c.sampleRate * dur), c.sampleRate);
@@ -291,38 +333,101 @@
         g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
         n.connect(bp).connect(g).connect(c.destination); n.start(t); n.stop(t + dur);
       }
-      // ケーキ出現: きらめくアルペジオ（タラーン）
-      function chime() {
-        var c = ac(), t0 = c.currentTime, notes = [523.25, 659.25, 783.99, 1046.5];
-        notes.forEach(function (f, i) {
-          var t = t0 + i * 0.09;
-          var o = c.createOscillator(); o.type = 'triangle'; o.frequency.value = f;
+
+      // ── 開いた瞬間のファンファーレ（ジャジャーン） ──
+      function fanfare() {
+        var c = ac(), t = c.currentTime;
+        // 前打ちの上がりベル
+        [392, 523.25].forEach(function (f, i) { voice(f, t + i * 0.11, 0.22, { type: 'triangle', gain: 0.12, reverb: 0.4 }); });
+        // 明るい金管風コード（ローパスを開いて“パッ”と輝かせる）
+        var chord = [261.63, 329.63, 392.0, 523.25];
+        chord.forEach(function (f) {
+          var o = c.createOscillator(); o.type = 'sawtooth'; o.frequency.value = f;
+          var lp = c.createBiquadFilter(); lp.type = 'lowpass';
+          lp.frequency.setValueAtTime(900, t + 0.22); lp.frequency.linearRampToValueAtTime(2600, t + 0.4);
           var g = c.createGain();
-          g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(0.2, t + 0.02);
-          g.gain.exponentialRampToValueAtTime(0.0001, t + 0.5);
-          o.connect(g).connect(c.destination); o.start(t); o.stop(t + 0.55);
+          g.gain.setValueAtTime(0.0001, t + 0.22); g.gain.linearRampToValueAtTime(0.1, t + 0.27);
+          g.gain.setValueAtTime(0.09, t + 0.5); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.95);
+          o.connect(lp).connect(g); send(g, 0.5); o.start(t + 0.22); o.stop(t + 1.0);
         });
       }
-      // 花吹雪: パンッ（ポップ）＋キラキラ
+
+      // ── ケーキ出現: 豪華なきらめきベル・アルペジオ ──
+      function chime() {
+        var c = ac(), t0 = c.currentTime, notes = [523.25, 659.25, 783.99, 1046.5, 1318.5];
+        notes.forEach(function (f, i) { bell(f, t0 + i * 0.085, 1.2, 0.17); });
+        voice(130.81, t0, 1.4, { type: 'triangle', gain: 0.1, attack: 0.05, reverb: 0.6 }); // 低音の土台
+      }
+
+      // ── 花吹雪: パーティークラッカー（コルク＋ホーン＋キラキラ） ──
       function pop() {
         var c = ac(), t = c.currentTime;
-        var buf = c.createBuffer(1, Math.floor(c.sampleRate * 0.15), c.sampleRate);
+        // コルクが弾ける破裂音
+        var buf = c.createBuffer(1, Math.floor(c.sampleRate * 0.16), c.sampleRate);
         var d = buf.getChannelData(0);
-        for (var i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / d.length, 2);
+        for (var i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / d.length, 2.2);
         var n = c.createBufferSource(); n.buffer = buf;
-        var hp = c.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 700;
-        var g = c.createGain(); g.gain.value = 0.5;
-        n.connect(hp).connect(g).connect(c.destination); n.start(t); n.stop(t + 0.15);
-        [1568, 2093, 2637].forEach(function (f, i) {
-          var tt = t + 0.02 + i * 0.05;
-          var o = c.createOscillator(); o.type = 'sine'; o.frequency.value = f;
-          var gg = c.createGain();
-          gg.gain.setValueAtTime(0.0001, tt); gg.gain.linearRampToValueAtTime(0.14, tt + 0.01);
-          gg.gain.exponentialRampToValueAtTime(0.0001, tt + 0.2);
-          o.connect(gg).connect(c.destination); o.start(tt); o.stop(tt + 0.22);
+        var hp = c.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 600;
+        var ng = c.createGain(); ng.gain.value = 0.55; n.connect(hp).connect(ng); send(ng, 0.3);
+        n.start(t); n.stop(t + 0.16);
+        voice(900, t, 0.18, { type: 'square', glideTo: 200, gain: 0.13, reverb: 0.2 });      // 下降ピュン
+        voice(392, t + 0.02, 0.3, { type: 'sawtooth', gain: 0.11, attack: 0.02, reverb: 0.3 }); // 短いホーン
+        [1568, 2093, 2637, 3136].forEach(function (f, i) { bell(f, t + 0.04 + i * 0.05, 0.6, 0.11); }); // 舞い散るキラキラ
+      }
+
+      // ── オルゴールで🎵ハッピーバースデー（開いてる間の主旋律） ──
+      function melody() {
+        var c = ac(); melodyOn = true;
+        melGain.gain.cancelScheduledValues(c.currentTime); melGain.gain.setValueAtTime(0.55, c.currentTime);
+        var t0 = c.currentTime + 0.05, b = 0.42; // 1拍
+        var G = 392, A = 440, B = 493.88, C = 523.25, D = 587.33;
+        var seq = [ // [周波数, 開始拍, 長さ拍]  ハッピーバースデー2フレーズ
+          [G, 0, 0.75], [G, 0.75, 0.25], [A, 1, 1], [G, 2, 1], [C, 3, 1], [B, 4, 2],
+          [G, 6, 0.75], [G, 6.75, 0.25], [A, 7, 1], [G, 8, 1], [D, 9, 1], [C, 10, 2]
+        ];
+        seq.forEach(function (s) { bell(s[0], t0 + s[1] * b, Math.max(0.5, s[2] * b * 1.4), 0.13, melGain); });
+        // やわらかいベース（小節頭）
+        [[C / 2, 0], [G / 2, 3], [C / 2, 6], [G / 2, 9]].forEach(function (s) {
+          voice(s[0], t0 + s[1] * b, b * 2.4, { type: 'triangle', gain: 0.06, attack: 0.04, reverb: 0.5, dest: melGain });
         });
       }
-      return { ac: ac, whoosh: whoosh, chime: chime, pop: pop };
+      function melodyOff() {
+        if (!ctx || !melodyOn) return; melodyOn = false;
+        melGain.gain.cancelScheduledValues(ctx.currentTime);
+        melGain.gain.setValueAtTime(melGain.gain.value, ctx.currentTime);
+        melGain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.5);
+      }
+
+      // ── キャラ登場のキラキラ ──
+      function twinkle() {
+        var c = ac(), t = c.currentTime, base = [1046.5, 1318.5, 1568, 2093];
+        for (var i = 0; i < 3; i++) {
+          var f = base[Math.floor(Math.random() * base.length)] * (Math.random() < 0.5 ? 1 : 1.5);
+          bell(f, t + i * 0.06, 0.5, 0.09);
+        }
+      }
+      // ── バニーのぴょん音 ──
+      function boing() {
+        var c = ac(), t = c.currentTime;
+        var o = c.createOscillator(); o.type = 'sine';
+        o.frequency.setValueAtTime(220, t);
+        o.frequency.exponentialRampToValueAtTime(520, t + 0.09);
+        o.frequency.exponentialRampToValueAtTime(300, t + 0.2);
+        var g = c.createGain();
+        g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(0.09, t + 0.01);
+        g.gain.exponentialRampToValueAtTime(0.0001, t + 0.22);
+        o.connect(g); send(g, 0.2); o.start(t); o.stop(t + 0.24);
+      }
+      // ── 閉じる時のやさしい下降ベル ──
+      function sparkleDown() {
+        var c = ac(), t = c.currentTime;
+        [1046.5, 783.99, 659.25, 523.25].forEach(function (f, i) { bell(f, t + i * 0.08, 0.7, 0.11); });
+      }
+
+      return {
+        ac: ac, whoosh: whoosh, fanfare: fanfare, chime: chime, pop: pop,
+        melody: melody, melodyOff: melodyOff, twinkle: twinkle, boing: boing, sparkleDown: sparkleDown
+      };
     })();
 
     function setHint(text) {
@@ -381,6 +486,7 @@
         });
         el.addEventListener('markerLost', function () {
           if (self._closeTimer) { clearTimeout(self._closeTimer); self._closeTimer = null; }
+          SFX.melodyOff();   // マーカーを見失ったらオルゴールも止める
           self.state = 'idle'; self._reset();
           hint.textContent = '再読み込みしてください';
         });
@@ -393,7 +499,9 @@
           var ob = document.getElementById('orbitCharParent');
           if (ob && ob.getAttribute('data-shown') === 'yes') closeIds.push('orbitCharParent'); // 出ていた時だけ縮小（未表示のフラッシュ防止）
           fire(closeIds, 'close');
-          SFX.whoosh();
+          SFX.whoosh();          // 🔊 めくる音（そのまま）
+          SFX.melodyOff();       // 🔊 オルゴールを止める
+          SFX.sparkleDown();     // 🔊 閉じるときのやさしい下降音
           setTimeout(function () {
             if (self.state === 'opened') {
               self.state = 'ready';
@@ -407,12 +515,22 @@
             self.state = 'opened';
             SFX.ac();                                   // タップ（ユーザー操作）で音声を有効化
             fire(['cover', 'cakeWrap', 'charTopper', 'bunnyWrap', 'loseChar', 'winChar', 'actionChar', 'randomCast'], 'open'); // カード開く＋ケーキ＋順次登場＋ランダム出演（周回はactionで選ばれた時のみ）
-            SFX.whoosh();                               // 🔊 開く音
+            SFX.whoosh();                               // 🔊 めくる音（そのまま）
+            setTimeout(function () { SFX.fanfare(); }, 260); // 🔊 開いた瞬間のファンファーレ
             setTimeout(function () { SFX.chime(); }, 700);   // 🔊 ケーキ出現音（生え始めに同期）
             setTimeout(function () {                          // 🔊 花吹雪（音と同時に発火）
               var cf = document.getElementById('confetti'); if (cf) cf.emit('open');
               SFX.pop();
             }, 950);
+            setTimeout(function () { if (self.state === 'opened') SFX.melody(); }, 1200);  // 🔊 オルゴールでハッピーバースデー
+            setTimeout(function () { if (self.state === 'opened') SFX.twinkle(); }, 1650); // 🔊 ケーキ上キャラ登場
+            setTimeout(function () {                                                        // 🔊 バニーのぴょん音（跳ねに同期して数回）
+              for (var k = 0; k < 5; k++) {
+                setTimeout(function () { if (self.state === 'opened') SFX.boing(); }, k * 640);
+              }
+            }, 3700);
+            setTimeout(function () { if (self.state === 'opened') SFX.twinkle(); }, 5650);  // 🔊 アクションキャラ登場
+            setTimeout(function () { if (self.state === 'opened') SFX.twinkle(); }, 7650);  // 🔊 win/loseキャラ登場
             if (self._closeTimer) clearTimeout(self._closeTimer);
             self._closeTimer = setTimeout(closeSeq, CLOSE_AFTER);  // ⏱ 15秒後に自動で閉じる
             hint.textContent = ' Happy Birthday! ';
