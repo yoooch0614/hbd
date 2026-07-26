@@ -380,7 +380,7 @@
       function melody() {
         var c = ac(); melodyOn = true;
         melGain.gain.cancelScheduledValues(c.currentTime); melGain.gain.setValueAtTime(0.55, c.currentTime);
-        var t0 = c.currentTime + 0.05, b = 0.42; // 1拍
+        var t0 = c.currentTime + 0.05, b = 0.525; // 1拍（0.8倍速版: 0.42 * 1.25）
         var G = 392, A = 440, B = 493.88, C = 523.25, D = 587.33;
         var seq = [ // [周波数, 開始拍, 長さ拍]  ハッピーバースデー2フレーズ
           [G, 0, 0.75], [G, 0.75, 0.25], [A, 1, 1], [G, 2, 1], [C, 3, 1], [B, 4, 2],
